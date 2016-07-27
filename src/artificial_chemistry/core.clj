@@ -1,6 +1,8 @@
 (ns artificial-chemistry.core
    (:require [clojure.math.numeric-tower :as math]))
 
+
+
 (defrecord RegisterMachine [read-only connectors program])
 
 
@@ -21,7 +23,9 @@
   (assoc-in rm [:connectors idx] number))
 
 
+
 (defrecord ProgramStep [function args target])
+
 
 
 (defn pdiv
@@ -32,16 +36,19 @@
     (/ dividend divisor)))
 
 
+
 (defn pow
   "Exponentiation"
   [base exponent]
   (math/expt base exponent))
 
 
+
 (defn rm-not
   "logical not on a numerical value"
   [n]
   (if (zero? n) 1.0 0.0))
+
 
 
 (defn rm-and
@@ -53,6 +60,7 @@
   ))
 
 
+
 (defn rm-or
   "logical `or` on numerical values"
   [n1 n2]
@@ -60,6 +68,32 @@
         n2z (not (zero? n2))]
   (if (or n1z n2z) 1.0 0.0)
   ))
+
+
+
+(def all-functions
+  {+ 2,
+   * 2,
+   - 2,
+   pdiv 2,
+   pow 2,
+   rm-and 2,
+   rm-or 2,
+   rm-not 1})
+
+
+
+(defn random-program-step
+  [functions readonly connectors]
+  (let [readable (+ readonly connectors)
+       [which-fxn arity] (rand-nth all-functions)]
+  (->ProgramStep
+    which-fxn
+    (into [] (take arity (repeatedly #(rand-int readable))))
+    (rand-int connectors)
+    )
+  ))
+
 
 
 (defn invoke

@@ -57,7 +57,7 @@
 (fact "exponentiation doesn't blow up"
   (let [rm (->RegisterMachine [-2 1/4] [0] [:foo])]
     (Double/isNaN (first (:connectors 
-        (invoke (->ProgramStep ppow [0 1] 0) rm)))) =>
+        (invoke (->ProgramStep pow [0 1] 0) rm)))) =>
       true
 ))
 
@@ -89,3 +89,20 @@
   (rm-or 0 1) => 1.0
   (rm-or -3 -2) => 1.0
   )
+
+
+
+(fact "random-program-step"
+  (random-program-step all-functions 10 12) =>
+    (->ProgramStep :FOO [17 17] 7)
+  (provided (rand-nth all-functions) => [:FOO 2],
+            (rand-int 22) => 17
+            (rand-int 12) => 7))
+
+
+(fact "random-program-step with arity 1"
+  (random-program-step all-functions 10 12) =>
+    (->ProgramStep rm-not [17] 7)
+  (provided (rand-nth all-functions) => [rm-not 1],
+            (rand-int 22) => 17
+            (rand-int 12) => 7))
