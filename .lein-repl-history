@@ -1,6 +1,0 @@
-(take 10 #(rand-int 9))
-(iterate 10 #(rand-int 9))
-(rand-int 9)
-(inc (rand-int 9))
-(take 10 (repeatedly #(inc (rand-int 9))))
-(take 100 (repeatedly #(inc (rand-int 9))))
