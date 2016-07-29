@@ -33,6 +33,7 @@
 
 (fact "I can invoke a ProgramStep 'on' a RegisterMachine"
   (let [rm (->RegisterMachine [9 8 7] [4 5 6] [:foo])]
+
     (invoke (->ProgramStep +' [5 1] 0) rm) =>
       (->RegisterMachine [9 8 7] [14 5 6] [:foo])
 
@@ -129,16 +130,6 @@
   )
 
 
-(fact "I can invoke a random program step of a RegisterMachine, and it will make a change"
-  (let [rm (->RegisterMachine
-              (into [] (take 5 (repeatedly #(rand 100.0))))
-              (into [] (take 5 (repeatedly #(rand-int 100))))
-              (random-program all-functions 5 5 20))]
-    (count (clojure.set/intersection 
-      (into #{} (:connectors (invoke-any-step rm)))
-      (into #{} (:connectors rm)))) => 4
-  ))
-
 
 
 (fact "I can examine the state after a specified number of steps with invoke-many-steps"
@@ -155,7 +146,57 @@
               (into [] (take 11 (repeatedly #(rand 100.0))))
               (into [] (repeat 30 0.0))
               (random-program all-functions 11 30 100))]
+    
     (count (rm-trace rm 50)) => 50
     (distinct (map class (rm-trace rm 50))) => [clojure.lang.PersistentVector]
     (distinct (map count (rm-trace rm 50))) => [30]
+
   ))
+
+
+(fact "output returns the value of the last element of `:connectors`"
+  (let [rm (->RegisterMachine [9 8 7] [4 5 6] [:foo])]
+    (output rm) => 6
+  ))
+
+
+(fact "set-inputs"
+  (let [rm (->RegisterMachine [9 8 7] [4 5 6] [:foo])]
+    (set-inputs rm [99 99]) => (->RegisterMachine [9 8 7] [99 99 6] [:foo])
+    (class (:connectors (set-inputs rm [99 99]))) => clojure.lang.PersistentVector
+))
+
+
+
+(fact "output-given-inputs steps a bunch and returns a number"
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+    (output-given-inputs rm 5 [99]) => 104
+    (output-given-inputs rm 1 [99]) => 100
+    (output-given-inputs rm 0 [99]) => 99
+  ))
+
+
+(fact "random-sine-case returns a vector"
+  (let [rsc (random-sine-case)]
+    (and  (>= (ffirst rsc) (- Math/PI)) (<= (ffirst rsc) Math/PI)) => true
+    (second rsc) => (Math/sin (ffirst rsc))
+  ))
+
+
+(fact "output-vector"
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+    (output-given-inputs rm 5 [99]) => 104
+    (output-vector rm 5 (list [[99] 888] [[17] 888]) ) => [104 22]
+    ))
+
+
+(fact "error-vector"
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+    (error-vector rm 5 (list [[99] 100] [[17] 100]) ) => [4 78]
+    ))
+
+
+(fact "I can apply error-vector to sine-data"
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+    (count (error-vector rm 100 sine-data)) => (count sine-data)
+    ))

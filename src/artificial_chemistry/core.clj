@@ -119,3 +119,52 @@
   "Takes a RegisterMachine and a number of iterations. It returns the lazy sequence of all the `:connectors` registers, recorded once for each step of iteration."
   [rm steps]
   (map :connectors (take steps (iterate invoke-any-step rm))))
+
+
+(defn output
+  "Returns the current value of the last `:connectors` element of an RegisterMachine"
+  [rm]
+  (last (:connectors rm)))
+
+
+(defn set-inputs
+  "Takes a RegisterMachine and a vector of input values. Replaces the first portion of the `:connectors` vector with these values."
+  [rm inputs]
+  (let [i (count inputs)]
+    (assoc rm 
+           :connectors 
+           (into [] (concat inputs (drop i (:connectors rm)))))))
+
+
+(defn output-given-inputs
+  "Takes a RegisterMachine, a count of steps to run it, and a vector of inputs. Overwrites the `:connectors` vector of the RegisterMachine with the inputs (starting at the front end) and executes the program steps at random. Returns the value of the last element of `:connectors` at the last step."
+  [rm steps inputs]
+  (output 
+    (invoke-many-steps (set-inputs rm inputs) steps)))
+
+
+(defn random-sine-case
+  []
+  (let [x (- (* 2 (rand Math/PI)) Math/PI)]
+    [[x] (Math/sin x)]
+    ))
+
+
+(def sine-data
+  (repeatedly 100 random-sine-case))
+
+
+
+(defn output-vector
+  "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of output values, one for each of the training cases."
+  [rm steps data]
+  (map #(output-given-inputs rm steps (first %)) data) )
+
+
+
+(defn error-vector
+  "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of absolute errors, comparing the output observed for each training case to its expected value."
+  [rm steps data]
+  (let [outs (output-vector rm steps data)]
+    (map #(Math/abs (- %1 %2)) outs (map second data))
+    ))
