@@ -2,7 +2,6 @@
    (:require [clojure.math.numeric-tower :as math]))
 
 
-
 (defrecord RegisterMachine [read-only connectors program])
 
 
@@ -72,14 +71,8 @@
 
 
 (def all-functions
-  {+ 2,
-   * 2,
-   - 2,
-   pdiv 2,
-   pow 2,
-   rm-and 2,
-   rm-or 2,
-   rm-not 1})
+  [ [+' 2],  [*' 2],     [-' 2],    [pdiv 2],
+    [pow 2], [rm-and 2], [rm-or 2], [rm-not 1]])
 
 
 
@@ -95,7 +88,6 @@
   ))
 
 
-
 (defn invoke
   [ps machine]
   (let [indices (into [] (concat (:read-only machine) (:connectors machine)))
@@ -103,3 +95,27 @@
         result  (apply (:function ps) values)]
     (assoc-in machine [:connectors (:target ps)] result)
     ))
+
+
+(defn random-program
+  [functions readonly connectors steps]
+  (take steps 
+    (repeatedly #(random-program-step functions readonly connectors))))
+
+
+(defn invoke-any-step
+  "Takes a RegisterMachine, picks a random ProgramStep from its `program`, and `invoke`s that step on the machine"
+  [rm]
+  (invoke (rand-nth (:program rm)) rm))
+
+
+(defn invoke-many-steps
+  "Takes a RegisterMachine and a number of iterations. In each iteration, it applies `invoke-any-step`"
+  [rm steps]
+  (nth (iterate invoke-any-step rm) steps))
+
+
+(defn rm-trace
+  "Takes a RegisterMachine and a number of iterations. It returns the lazy sequence of all the `:connectors` registers, recorded once for each step of iteration."
+  [rm steps]
+  (map :connectors (take steps (iterate invoke-any-step rm))))

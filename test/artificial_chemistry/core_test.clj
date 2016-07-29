@@ -25,21 +25,21 @@
 
 
 (fact "I can make a new ProgramStep"
-  (:function (->ProgramStep '+ [9 12] 3)) => '+
-  (:args     (->ProgramStep '+ [9 12] 3)) => [9 12]
-  (:target   (->ProgramStep '+ [9 12] 3)) => 3
+  (:function (->ProgramStep '+' [9 12] 3)) => '+'
+  (:args     (->ProgramStep '+' [9 12] 3)) => [9 12]
+  (:target   (->ProgramStep '+' [9 12] 3)) => 3
   )
 
 
 (fact "I can invoke a ProgramStep 'on' a RegisterMachine"
   (let [rm (->RegisterMachine [9 8 7] [4 5 6] [:foo])]
-    (invoke (->ProgramStep + [5 1] 0) rm) =>
+    (invoke (->ProgramStep +' [5 1] 0) rm) =>
       (->RegisterMachine [9 8 7] [14 5 6] [:foo])
 
-    (invoke (->ProgramStep - [2 1] 0) rm) =>
+    (invoke (->ProgramStep -' [2 1] 0) rm) =>
       (->RegisterMachine [9 8 7] [-1 5 6] [:foo])
 
-    (invoke (->ProgramStep * [0 3] 1) rm) =>
+    (invoke (->ProgramStep *' [0 3] 1) rm) =>
       (->RegisterMachine [9 8 7] [4 36 6] [:foo])
 
     (invoke (->ProgramStep pdiv [4 3] 0) rm) =>
@@ -93,11 +93,14 @@
 
 
 (fact "random-program-step"
-  (random-program-step all-functions 10 12) =>
-    (->ProgramStep :FOO [17 17] 7)
-  (provided (rand-nth all-functions) => [:FOO 2],
-            (rand-int 22) => 17
-            (rand-int 12) => 7))
+  (:args (random-program-step all-functions 10 12)) => [17 17]
+    (provided (rand-nth all-functions) => (first all-functions)
+              (rand-int 22) => 17
+              (rand-int 12) => 7)
+  (:target (random-program-step all-functions 10 12)) => 7
+    (provided (rand-int 22) => 17
+              (rand-int 12) => 7)
+  )
 
 
 (fact "random-program-step with arity 1"
@@ -106,3 +109,53 @@
   (provided (rand-nth all-functions) => [rm-not 1],
             (rand-int 22) => 17
             (rand-int 12) => 7))
+
+
+(fact "I can create and invoke a random-program-step"
+  (let [rm (->RegisterMachine [9 8 7] [4 5 6] [:foo])]
+    (invoke (random-program-step all-functions 3 3) rm) =>
+      (->RegisterMachine [9 8 7] [49 5 6] [:foo])
+        (provided (rand-nth all-functions) => (second all-functions)
+                  (rand-int 6) => 2
+                  (rand-int 3) => 0)
+
+  ))
+
+
+(fact "random-program returns a collection of ProgramStep items"
+  (count (random-program all-functions 10 10 100)) => 100
+  (random-program all-functions 10 10 100) => (repeat 100 999)
+    (provided (random-program-step all-functions 10 10) => 999)
+  )
+
+
+(fact "I can invoke a random program step of a RegisterMachine, and it will make a change"
+  (let [rm (->RegisterMachine
+              (into [] (take 5 (repeatedly #(rand 100.0))))
+              (into [] (take 5 (repeatedly #(rand-int 100))))
+              (random-program all-functions 5 5 20))]
+    (count (clojure.set/intersection 
+      (into #{} (:connectors (invoke-any-step rm)))
+      (into #{} (:connectors rm)))) => 4
+  ))
+
+
+
+(fact "I can examine the state after a specified number of steps with invoke-many-steps"
+  (let [rm (->RegisterMachine
+              (into [] (take 5 (repeatedly #(rand 100.0))))
+              (into [] (take 5 (repeatedly #(rand-int 100))))
+              (random-program all-functions 5 5 20))]
+    (class (invoke-many-steps rm 0)) => (class rm)
+  ))
+
+
+(fact "I can trace steps with rm-trace"
+  (let [rm (->RegisterMachine
+              (into [] (take 11 (repeatedly #(rand 100.0))))
+              (into [] (repeat 30 0.0))
+              (random-program all-functions 11 30 100))]
+    (count (rm-trace rm 50)) => 50
+    (distinct (map class (rm-trace rm 50))) => [clojure.lang.PersistentVector]
+    (distinct (map count (rm-trace rm 50))) => [30]
+  ))
