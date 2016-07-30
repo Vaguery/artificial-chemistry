@@ -166,5 +166,97 @@
   "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of absolute errors, comparing the output observed for each training case to its expected value."
   [rm steps data]
   (let [outs (output-vector rm steps data)]
-    (map #(Math/abs (- %1 %2)) outs (map second data))
+    (into [] (map #(Math/abs (- %1 %2)) outs (map second data)))
     ))
+
+
+(defn mean-squared-error
+  "Takes a collection of numeric values, squares them, adds those to produce a single sum"
+  [numbers]
+  (reduce + (map #(* %1 %1) numbers)))
+
+
+(defn isNaN?
+  [number]
+  (Double/isNaN number))
+
+
+(defn errors-and-failures
+  "Takes a RegisterMachine and number of steps to run it, and a bunch of training cases, runs the machine for each case, collects the error-vector, and returns two scores: the MSE of all numerical results, and the count of non-numerical results"
+  [rm steps data]
+  (let [errs (error-vector rm steps data)
+        bad  (filter isNaN? errs)
+        good (filter #(not (isNaN? %)) errs)]
+      {:mse (mean-squared-error good) :failures (count bad) :error-vector errs}
+    ))
+
+
+(defn record-errors
+  "Takes a RegisterMachine, a number of steps to run it, and a pile of training cases. Evaluates the machine over each training step, calcluates its `error-vector` and `errors-and-failures` hash, and associates those into the RegisterMachine, which is returned"
+  [rm steps data]
+  (let [enf (errors-and-failures rm steps data)]
+    (-> rm
+      (assoc , :error-vector (:error-vector enf))
+      (assoc , :mse (:mse enf))
+      (assoc , :failures (:failures enf)))))
+
+
+(defn crossover-program
+  "Takes two RegisterMachines. Randomly samples some ProgramSteps from each, returning a new program combining the samples"
+  [mom dad]
+  (let [mom-program (:program mom)
+        mom-contrib (rand-int (count mom-program))
+        dad-program (:program dad)
+        dad-contrib (rand-int (count dad-program))]
+    (into [] (concat
+      (repeatedly mom-contrib #(rand-nth mom-program))
+      (repeatedly dad-contrib #(rand-nth dad-program))
+      ))))
+
+
+
+(defn crossover-registers
+  "Takes two RegisterMachines. Constructs a new `:read-only` vector by sampling from the two with equal probability."
+  [mom dad]
+  (map #(if (< (rand) 1/2) %1 %2) (:read-only mom) (:read-only dad)))
+
+
+
+(defn crossover
+  "Takes two RegisterMachines, and does crossover of both their `:read-only` vectors and programs"
+  [mom dad]
+  (->RegisterMachine
+    (crossover-registers mom dad)
+    (:connectors mom)
+    (crossover-program mom dad)))
+
+
+(defn mutate-registers
+  "Takes a RegisterMachine and with a specified probability changes each constant in `:read-only` to be a new value"
+  [rm prob]
+  (let [old-values (:read-only rm)
+        new-values (map #(if (< (rand) prob)
+                           (+ % (rand) -0.5)
+                           %) old-values)]
+    (assoc rm :read-only new-values)))
+
+
+
+(defn mutate-program
+  "Takes a RegisterMachine and with a specified probability replaces each program step with a completely new one, chosen at random"
+  [rm prob]
+  (let [old-program (:program rm)
+        ro-count  (count (:read-only rm))
+        cxn-count (count (:connectors rm))
+        new-program (map #(if (< (rand) prob)
+                            (random-program-step all-functions ro-count cxn-count) 
+                            %)
+                         old-program)]
+    (assoc rm :program new-program)))
+
+
+(defn mutate
+  [rm prob]
+  (-> rm
+      (mutate-registers , prob)
+      (mutate-program , prob)))

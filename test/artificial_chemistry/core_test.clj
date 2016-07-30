@@ -200,3 +200,153 @@
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
     (count (error-vector rm 100 sine-data)) => (count sine-data)
     ))
+
+
+(fact "mean-squared-error does what the sign says"
+  (mean-squared-error [0 0 0 0 0 0]) => 0
+  (mean-squared-error [0 0 0 0 0 1]) => 1
+  (mean-squared-error [0 0 0 0 0 2]) => 4
+  (mean-squared-error [2 2 2 2 2 2]) => 24
+  )
+
+
+(fact "errors-and-failures returns a hash with both scores"
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+    (keys (errors-and-failures rm 500 sine-data)) => [:mse :failures :error-vector]
+  ))
+
+
+(fact "record-errors modifies a RegisterMachine"
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+    (keys (record-errors rm 500 sine-data)) =>
+      [:read-only :connectors :program :error-vector :mse :failures]
+))
+
+
+(fact "crossover-registers"
+  (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])
+        dad (->RegisterMachine [2 2 2 2] [0 0 0] [:z :y :x :w])]
+    (crossover-registers mom dad) => [1 2 1 2]
+    (provided (rand) =streams=> [0 1 0 1])
+    ))
+
+
+(fact "crossover-program"
+  (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])
+        dad (->RegisterMachine [2 2 2 2] [0 0 0] [:z :y :x :w])]
+    (crossover-program mom dad) => [:MOM :MOM :MOM :MOM :DAD :DAD :DAD :DAD]
+    (provided (rand-int 4) => 4
+              (rand-nth [:a :b :c :d]) => :MOM
+              (rand-nth [:z :y :x :w]) => :DAD
+              )))
+
+
+
+(fact "crossover"
+  (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])
+        dad (->RegisterMachine [2 2 2 2] [0 0 0] [:z :y :x :w])]
+    (crossover mom dad) => (->RegisterMachine
+                              [1 2 1 2]
+                              [0 0 0]
+                              [:MOM :MOM :MOM :MOM :DAD :DAD :DAD :DAD ])
+    
+    (provided (rand-int 4) => 4
+              (rand-nth [:a :b :c :d]) => :MOM
+              (rand-nth [:z :y :x :w]) => :DAD
+              (rand) =streams=> [0.1 0.8 0.1 0.8])))
+
+
+(fact "mutate-registers"
+  (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])]
+    (:read-only (mutate-registers mom 0)) => (:read-only mom)
+    (:read-only (mutate-registers mom 1)) =not=> (:read-only mom)
+  ))
+
+
+(fact "mutate-program"
+  (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])]
+    (:program (mutate-program mom 0)) => (:program mom)
+    (:program (mutate-program mom 1)) =not=> (:program mom)
+    (mutate-program mom 0) => mom
+  ))
+
+
+;;;; implementing steady state experiment
+
+
+
+(defn random-x6-case
+  []
+  (let [x (+ (rand 100) -50)]
+    [[x] (+ x 6)]
+    ))
+
+
+(def x6-data
+  (repeatedly 100 random-x6-case))
+
+
+
+(defn apply-rubrics
+  [rm]
+  (record-errors rm 500 (take 100 x6-data)))
+
+
+(defn random-sine-machine
+  []
+  (->RegisterMachine
+    (into [] (repeatedly 11 #(- (rand 100.0) 50.0)))
+    (into [] (repeat 30 0.0 ))
+    (random-program all-functions 11 30 100)))
+
+
+(def starting-pile
+  (repeatedly 100 #(random-sine-machine)))
+
+
+(defn score-pile
+  [pile]
+  (map apply-rubrics pile))
+
+
+(defn steady-state-breed
+  [pile]
+  (let [mom  (rand-nth pile)
+        dad  (rand-nth pile)
+        baby (mutate (crossover mom dad) 0.1)
+        scored-baby (apply-rubrics baby)]
+    (conj pile scored-baby)))
+
+
+(defn steady-state-immigrate
+  [pile]
+  (conj pile (apply-rubrics (random-sine-machine))))
+
+
+
+(defn steady-state-cull
+  [pile]
+  (butlast (sort-by #(+ (:mse %) (* 100000 (:failures %))) (shuffle pile))))
+
+
+(defn print-mse-scores
+  [pile t]
+  (let [line (str "\n" t ", " (clojure.string/join ", " (map :mse pile)))]
+    (spit "steady-state-rms.csv" line :append true)
+    (println t " " (:mse (first pile)))
+    pile))
+
+
+(loop [pile (score-pile starting-pile)
+          t 0]
+  (let [primo (first pile)]
+    (if (or (> t 1000) (and (zero? (:mse primo)) (zero? (:failures primo))))
+      (println (first pile))
+      (recur (-> pile
+                 steady-state-immigrate
+                 steady-state-breed
+                 steady-state-cull
+                 steady-state-cull
+                 (print-mse-scores, t))
+              (inc t)
+              ))))
