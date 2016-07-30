@@ -289,14 +289,14 @@
 
 (defn apply-rubrics
   [rm]
-  (record-errors rm 500 (take 100 x6-data)))
+  (record-errors rm 500 (take 10 (shuffle sine-data))))
 
 
 (defn random-sine-machine
   []
   (->RegisterMachine
-    (into [] (repeatedly 11 #(- (rand 100.0) 50.0)))
-    (into [] (repeat 30 0.0 ))
+    (into [] (repeatedly 11 #(- (rand 10.0) 5.0)))
+    (into [] (repeat 30 0.0))
     (random-program all-functions 11 30 100)))
 
 
@@ -306,7 +306,7 @@
 
 (defn score-pile
   [pile]
-  (map apply-rubrics pile))
+  (pmap apply-rubrics pile))
 
 
 (defn steady-state-breed
@@ -325,8 +325,8 @@
 
 
 (defn steady-state-cull
-  [pile]
-  (butlast (sort-by #(+ (:mse %) (* 100000 (:failures %))) (shuffle pile))))
+  [pile kill]
+  (drop-last kill (sort-by #(+ (:mse %) (* 10 (:failures %))) (shuffle pile))))
 
 
 (defn print-mse-scores
@@ -340,13 +340,22 @@
 (loop [pile (score-pile starting-pile)
           t 0]
   (let [primo (first pile)]
-    (if (or (> t 1000) (and (zero? (:mse primo)) (zero? (:failures primo))))
+    (if (or (> t 10000) (and (zero? (:mse primo)) (zero? (:failures primo))))
       (println (first pile))
       (recur (-> pile
                  steady-state-immigrate
                  steady-state-breed
-                 steady-state-cull
-                 steady-state-cull
+                 steady-state-breed
+                 steady-state-breed
+                 steady-state-breed
+                 steady-state-breed
+                 steady-state-breed
+                 steady-state-breed
+                 steady-state-breed
+                 steady-state-breed
+                 steady-state-breed
+                 score-pile
+                 (steady-state-cull , 11)
                  (print-mse-scores, t))
               (inc t)
               ))))

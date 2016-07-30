@@ -236,7 +236,7 @@
   [rm prob]
   (let [old-values (:read-only rm)
         new-values (map #(if (< (rand) prob)
-                           (+ % (rand) -0.5)
+                           (if (< (rand) 1/2) (* % 0.99) (* % 1.01))
                            %) old-values)]
     (assoc rm :read-only new-values)))
 
