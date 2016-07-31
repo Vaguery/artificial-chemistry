@@ -20,7 +20,7 @@
 
 (def starting-pile
   (repeatedly 
-    20 
+    100 
     #(randomize-read-only
       (random-register-machine all-functions 11 30 100)
         100
@@ -28,7 +28,7 @@
 
 
 (def scored-start-pile
-  (map #(record-errors % 500 x6-data) starting-pile))
+  (map #(record-errors % 500 (take 50 (shuffle x6-data))) starting-pile))
 
 ; (println 
 ;   (map :mse scored-start-pile))
@@ -86,15 +86,27 @@
         ))))
 
 
+(defn report-best
+  [t pile]
+  (do 
+    (spit "steady-state-bests.csv"
+          (str t ", "
+            (pr-str (second pile))
+            "\n")
+          :append true)
+          ))
+
+
+
 (do
   (spit "steady-state-rms.csv" "")
   (loop [pile scored-start-pile
          step 0]
     (if (> step 10000)
-      (report-line step pile)
+      (report-best step pile)
       (do
         (report-line step pile)
-        (recur (one-steady-state-step pile 500 x6-data)
+        (recur (one-steady-state-step pile 500 (take 50 (shuffle x6-data)))
                (inc step))
                ))))
 
