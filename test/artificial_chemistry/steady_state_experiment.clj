@@ -1,6 +1,6 @@
 (ns artificial-chemistry.steady-state-experiment
-  (:use midje.sweet)
-  (:use [artificial-chemistry.core]))
+  (:use midje.sweet
+       [artificial-chemistry.core]))
 
 
 ;;;; implementing a simple steady state experiment interactively
@@ -67,9 +67,14 @@
 (defn one-steady-state-step
   "Assumes the machines are scored before arriving"
   [pile steps data]
-  (let [baby (record-errors (steady-state-breed-one pile) steps data)]
-    (conj (steady-state-cull-one pile) baby)
-    ))
+  (let [baby (record-errors (steady-state-breed-one pile) steps data)
+        mute (record-errors (mutate (rand-nth pile) 0.05) steps data)]
+    (-> pile
+        steady-state-cull-one
+        (conj , mute)
+        steady-state-cull-one
+        (conj , baby)
+    )))
 
 
 (defn report-line
