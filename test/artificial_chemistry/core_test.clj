@@ -163,6 +163,7 @@
 (fact "set-inputs"
   (let [rm (->RegisterMachine [9 8 7] [4 5 6] [:foo])]
     (set-inputs rm [99 99]) => (->RegisterMachine [9 8 7] [99 99 6] [:foo])
+    (set-inputs rm [11]) => (->RegisterMachine [9 8 7] [11 5 6] [:foo])
     (class (:connectors (set-inputs rm [99 99]))) => clojure.lang.PersistentVector
 ))
 
@@ -227,15 +228,26 @@
   (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])
         dad (->RegisterMachine [2 2 2 2] [0 0 0] [:z :y :x :w])]
     (crossover-registers mom dad) => [1 2 1 2]
-    (provided (rand) =streams=> [0 1 0 1])
+    (provided (rand-nth [1 2]) =streams=> [1 2 1 2])
     ))
 
 
-(fact "crossover-program"
+(fact "crossover-program does crossover"
   (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])
         dad (->RegisterMachine [2 2 2 2] [0 0 0] [:z :y :x :w])]
-    (crossover-program mom dad) => [:MOM :MOM :MOM :MOM :DAD :DAD :DAD :DAD]
-    (provided (rand-int 4) => 4
+    (crossover-program mom dad) => [:MOM :MOM :MOM :DAD :DAD :DAD]
+    (provided (rand-int 4) => 3
+              (rand-nth [:a :b :c :d]) => :MOM
+              (rand-nth [:z :y :x :w]) => :DAD
+              )))
+
+
+
+(fact "crossover-program won't ever produce an empty result"
+  (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])
+        dad (->RegisterMachine [2 2 2 2] [0 0 0] [:z :y :x :w])]
+    (crossover-program mom dad) => [:MOM :DAD]
+    (provided (rand-int 4) => 0
               (rand-nth [:a :b :c :d]) => :MOM
               (rand-nth [:z :y :x :w]) => :DAD
               )))
@@ -248,114 +260,26 @@
     (crossover mom dad) => (->RegisterMachine
                               [1 2 1 2]
                               [0 0 0]
-                              [:MOM :MOM :MOM :MOM :DAD :DAD :DAD :DAD ])
-    
-    (provided (rand-int 4) => 4
+                              [:MOM :MOM :MOM :DAD :DAD :DAD])
+    (provided (rand-nth [1 2]) =streams=> [1 2 1 2]
+              (rand-int 4) => 3
               (rand-nth [:a :b :c :d]) => :MOM
               (rand-nth [:z :y :x :w]) => :DAD
-              (rand) =streams=> [0.1 0.8 0.1 0.8])))
-
-
-(fact "mutate-registers"
-  (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])]
-    (:read-only (mutate-registers mom 0)) => (:read-only mom)
-    (:read-only (mutate-registers mom 1)) =not=> (:read-only mom)
-  ))
-
-
-(fact "mutate-program"
-  (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])]
-    (:program (mutate-program mom 0)) => (:program mom)
-    (:program (mutate-program mom 1)) =not=> (:program mom)
-    (mutate-program mom 0) => mom
-  ))
-
-
-;;;; implementing steady state experiment
+              )))
 
 
 
-(defn random-x6-case
-  []
-  (let [x (+ (rand 100) -50)]
-    [[x] (+ x 6)]
+(fact "randomize-read-only"
+  (let [rm (random-register-machine all-functions 11 30 3)]
+    (:read-only rm) => (repeat 11 0.0)
+    (count (:read-only (randomize-read-only rm 10))) => 11
+    (:read-only (randomize-read-only rm 0)) =>
+      [0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
+    (:read-only (randomize-read-only rm 100)) =>
+      [-80.0 80.0 -80.0 80.0 -80.0 80.0 -80.0 80.0 -80.0 80.0 -80.0]
+      (provided (rand) =streams=> (cycle [0.1 0.9]))
     ))
 
 
-(def x6-data
-  (repeatedly 100 random-x6-case))
 
 
-
-(defn apply-rubrics
-  [rm]
-  (record-errors rm 500 (take 10 (shuffle sine-data))))
-
-
-(defn random-sine-machine
-  []
-  (->RegisterMachine
-    (into [] (repeatedly 11 #(- (rand 10.0) 5.0)))
-    (into [] (repeat 30 0.0))
-    (random-program all-functions 11 30 100)))
-
-
-(def starting-pile
-  (repeatedly 100 #(random-sine-machine)))
-
-
-(defn score-pile
-  [pile]
-  (pmap apply-rubrics pile))
-
-
-(defn steady-state-breed
-  [pile]
-  (let [mom  (rand-nth pile)
-        dad  (rand-nth pile)
-        baby (mutate (crossover mom dad) 0.1)
-        scored-baby (apply-rubrics baby)]
-    (conj pile scored-baby)))
-
-
-(defn steady-state-immigrate
-  [pile]
-  (conj pile (apply-rubrics (random-sine-machine))))
-
-
-
-(defn steady-state-cull
-  [pile kill]
-  (drop-last kill (sort-by #(+ (:mse %) (* 10 (:failures %))) (shuffle pile))))
-
-
-(defn print-mse-scores
-  [pile t]
-  (let [line (str "\n" t ", " (clojure.string/join ", " (map :mse pile)))]
-    (spit "steady-state-rms.csv" line :append true)
-    (println t " " (:mse (first pile)))
-    pile))
-
-
-(loop [pile (score-pile starting-pile)
-          t 0]
-  (let [primo (first pile)]
-    (if (or (> t 10000) (and (zero? (:mse primo)) (zero? (:failures primo))))
-      (println (first pile))
-      (recur (-> pile
-                 steady-state-immigrate
-                 steady-state-breed
-                 steady-state-breed
-                 steady-state-breed
-                 steady-state-breed
-                 steady-state-breed
-                 steady-state-breed
-                 steady-state-breed
-                 steady-state-breed
-                 steady-state-breed
-                 steady-state-breed
-                 score-pile
-                 (steady-state-cull , 11)
-                 (print-mse-scores, t))
-              (inc t)
-              ))))

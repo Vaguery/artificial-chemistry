@@ -166,7 +166,7 @@
   "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of absolute errors, comparing the output observed for each training case to its expected value."
   [rm steps data]
   (let [outs (output-vector rm steps data)]
-    (into [] (map #(Math/abs (- %1 %2)) outs (map second data)))
+    (into [] (map #(Math/abs (- %1 %2)) outs (pmap second data)))
     ))
 
 
@@ -205,9 +205,9 @@
   "Takes two RegisterMachines. Randomly samples some ProgramSteps from each, returning a new program combining the samples"
   [mom dad]
   (let [mom-program (:program mom)
-        mom-contrib (rand-int (count mom-program))
+        mom-contrib (max 1 (rand-int (count mom-program)))
         dad-program (:program dad)
-        dad-contrib (rand-int (count dad-program))]
+        dad-contrib (max 1 (rand-int (count dad-program)))]
     (into [] (concat
       (repeatedly mom-contrib #(rand-nth mom-program))
       (repeatedly dad-contrib #(rand-nth dad-program))
@@ -218,7 +218,7 @@
 (defn crossover-registers
   "Takes two RegisterMachines. Constructs a new `:read-only` vector by sampling from the two with equal probability."
   [mom dad]
-  (map #(if (< (rand) 1/2) %1 %2) (:read-only mom) (:read-only dad)))
+  (map #(rand-nth [%1 %2]) (:read-only mom) (:read-only dad)))
 
 
 
@@ -231,32 +231,25 @@
     (crossover-program mom dad)))
 
 
-(defn mutate-registers
-  "Takes a RegisterMachine and with a specified probability changes each constant in `:read-only` to be a new value"
-  [rm prob]
-  (let [old-values (:read-only rm)
-        new-values (map #(if (< (rand) prob)
-                           (if (< (rand) 1/2) (* % 0.99) (* % 1.01))
-                           %) old-values)]
-    (assoc rm :read-only new-values)))
+
+(defn random-register-machine
+  "Takes a function set, and counts of `:read-only` and `connectors` registers, and a number of steps in its `:program`. All registers are set to 0.0"
+  [function-set read-only connectors steps]
+  (->RegisterMachine
+    (into [] (repeat read-only 0.0))
+    (into [] (repeat connectors 0.0))
+    (random-program function-set read-only connectors steps)
+    ))
 
 
-
-(defn mutate-program
-  "Takes a RegisterMachine and with a specified probability replaces each program step with a completely new one, chosen at random"
-  [rm prob]
-  (let [old-program (:program rm)
-        ro-count  (count (:read-only rm))
-        cxn-count (count (:connectors rm))
-        new-program (map #(if (< (rand) prob)
-                            (random-program-step all-functions ro-count cxn-count) 
-                            %)
-                         old-program)]
-    (assoc rm :program new-program)))
+(defn randomize-read-only
+  "Takes a RegisterMachine, and a range value, and sets each of the `:read-only` registers to a uniform random value between [-range, range]"
+  [rm scale]
+  (let [how-many      (count (:read-only rm))
+        double-range  (* 2.0 scale)]
+    (assoc rm
+           :read-only
+           (into [] (repeatedly how-many #(- (* (rand) double-range) scale)))
+           )))
 
 
-(defn mutate
-  [rm prob]
-  (-> rm
-      (mutate-registers , prob)
-      (mutate-program , prob)))
