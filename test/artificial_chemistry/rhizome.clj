@@ -9,42 +9,78 @@
      :b [:c]
      :c [:a]})
 
-; (rhizome/view-graph (keys g) g
-;     :node->descriptor (fn [n] {:label n}))
 
 
 (def test-program
-  (random-program all-functions 2 2 3))
+  (random-program all-functions 11 30 100))
 
 
-; (defn record-args-edges
-;   [graph idx step]
-;   (let [args  (:args step)
-;         text  (:string step)]
-;     (reduce
-;       (fn [g a]
-;         (let [edges (get g a [])]
-;           (assoc g a (conj edges text))))
-;       graph
-;       args)
-;     ))
+(defn step-labels
+  [prog]
+  (map-indexed 
+    (fn [idx step] (str (inc idx) "-" (:string step))) prog)
+  )
+
+(fact 
+  (count (step-labels test-program)) => (count test-program))
 
 
-; (fact
-;   (reduce 
-;     (fn [g s] (record-args-edges g s))
-;     {}
-;     test-program) => 99
-;   )
+(defn store-arg-edge
+  [graph arg step]
+  (let [edges (get graph arg [])]
+    (assoc graph arg (conj edges step))
+    ))
+
+(fact
+  (store-arg-edge {} 12 "FOO") => {12 ["FOO"]}
+  (store-arg-edge {12 ["FOO"]} 12 "BAR") => {12 ["FOO" "BAR"]}
+  (store-arg-edge {12 ["FOO"]} 2 "BAR") => {2 ["BAR"], 12 ["FOO"]})
 
 
-; (defn dotfile-for
-;   [prog]
-;   (reduce
-;     #()
-;     {}
-;     prog))
+(defn store-out-edge
+  [graph step target]
+  (let [edges (get graph step [])]
+    (assoc graph step (conj edges target))
+    ))
 
-; (fact "a program can be converted into a dot string"
-;   (dotfile-for test-program) => 3
-;   )
+
+(fact
+  (store-out-edge {} "FOO" 1) => {"FOO" [1]}
+  (store-out-edge {"FOO" [1]} "FOO" 9) => {"FOO" [1 9]}
+  (store-out-edge {"FOO" [1 9]} "BAR" 9) => {"BAR" [9], "FOO" [1 9]})
+
+
+(defn store-step-edges
+  [graph args step target]
+  (-> (reduce #(store-arg-edge %1 %2 step) graph args)
+      (store-out-edge , step target)
+  ))
+
+
+(fact
+  (store-step-edges {} [1 2 3] "1-FOO" 9) =>
+    {1 ["1-FOO"], 2 ["1-FOO"], 3 ["1-FOO"], "1-FOO" [9]}
+  (store-step-edges {1 ["1-FOO"], 2 ["1-FOO"], 3 ["1-FOO"], "1-FOO" [9]}
+                    [1 2] "2-BAR" 2) => 
+    {1 ["1-FOO" "2-BAR"], 2 ["1-FOO" "2-BAR"], 3 ["1-FOO"], "1-FOO" [9], "2-BAR" [2]}
+    )
+
+
+(defn store-program
+  [prog]
+  (let [in     (map :args prog)
+        out    (map :target prog)
+        labels (step-labels prog)
+        nodes  (partition 3 (interleave in labels out))]
+    (reduce
+      (fn [g [a b c]] (store-step-edges g a b c))
+      {}
+      nodes)))
+
+(def g (store-program test-program))
+
+(rhizome/view-graph (keys g) g
+    :node->descriptor (fn [n] {:label n})
+    :options {:mode :spring}
+    )
+
