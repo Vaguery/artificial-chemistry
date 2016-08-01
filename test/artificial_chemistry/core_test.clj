@@ -1,6 +1,7 @@
 (ns artificial-chemistry.core-test
   (:use midje.sweet)
-  (:use [artificial-chemistry.core]))
+  (:use [artificial-chemistry.core])
+  (:require [roul.random :as rr]))
 
 
 (fact "I can make a new RegisterMachine"
@@ -282,4 +283,26 @@
 
 
 
+(fact "mutate-registers"
+  (let [rm (->RegisterMachine [1 1 1 1] [] [])]
+    (:read-only (mutate-registers rm 0.0)) => (:read-only rm)
+    (:read-only (mutate-registers rm 1.0)) =not=> (contains 1)
+    (:read-only (mutate-registers rm 1.0)) => [99 99 99 99]
+      (provided (rr/rand-gaussian 1 1.0) => 99)
+    ))
 
+
+
+(fact "mutate-program"
+  (let [rm (->RegisterMachine [1 2] [1 2] [:a :b :c])]
+    (:program (mutate-program rm 0.0)) => (:program rm)
+    (:program (mutate-program rm 1.0)) =not=> (contains :a)
+    (map class (:program (mutate-program rm 1.0))) => 
+      [artificial_chemistry.core.ProgramStep 
+       artificial_chemistry.core.ProgramStep 
+       artificial_chemistry.core.ProgramStep]
+    (map :args (:program (mutate-program rm 1.0))) => [ [1 2] [3 1] [2 3]]
+      (provided (rand-int 4) =streams=> (cycle [1 2 3])
+                (rand-int 2) => 1
+                (rand-nth all-functions) => (first all-functions))
+                ))

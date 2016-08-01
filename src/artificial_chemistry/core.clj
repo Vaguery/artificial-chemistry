@@ -1,5 +1,6 @@
 (ns artificial-chemistry.core
-   (:require [clojure.math.numeric-tower :as math]))
+   (:require [clojure.math.numeric-tower :as math]
+             [roul.random :as rr]))
 
 
 (defrecord RegisterMachine [read-only connectors program])
@@ -215,11 +216,35 @@
 
 
 
+(defn mutate-program
+  "Tkes a RegisterMachine, and a probability of mutation. Each step of the `:program` is changed with that probability to a completely new `random-program-step` result."
+  [rm prob]
+  (let [old-program (:program rm)
+        ro-count    (count (:read-only rm))
+        cxn-count   (count (:connectors rm))]
+    (assoc rm
+           :program
+           (map #(if (< (rand) prob) 
+                  (random-program-step all-functions ro-count cxn-count) 
+                  %) 
+                old-program))
+                ))
+
+
 (defn crossover-registers
   "Takes two RegisterMachines. Constructs a new `:read-only` vector by sampling from the two with equal probability."
   [mom dad]
   (map #(rand-nth [%1 %2]) (:read-only mom) (:read-only dad)))
 
+
+(defn mutate-registers
+  "Takes one RegisterMachine, and a probability of mutation. With specified probability it replaces each entry in `:read-only` with a gaussian deviate with mean equal to the original value, and standard deviation equal to 1.0"
+  [rm prob]
+  (let [old-registers (:read-only rm)]
+    (assoc rm 
+           :read-only
+           (map #(if (< (rand) prob) (rr/rand-gaussian % 1.0) %) old-registers))
+    ))
 
 
 (defn crossover
@@ -230,6 +255,13 @@
     (:connectors mom)
     (crossover-program mom dad)))
 
+
+(defn mutate
+  "Takes a RegisterMachine and a probability, and changes both the `:read-only` registers and the program steps with that probability."
+  [rm prob]
+  (-> rm
+      (mutate-registers , prob)
+      (mutate-program , prob)))
 
 
 (defn random-register-machine
