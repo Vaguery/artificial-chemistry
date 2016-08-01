@@ -200,7 +200,7 @@
 
 (fact "I can apply error-vector to sine-data"
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
-    (count (error-vector rm 100 sine-data)) => (count sine-data)
+    (count (error-vector rm 5 sine-data)) => (count sine-data)
     ))
 
 
@@ -214,13 +214,13 @@
 
 (fact "errors-and-failures returns a hash with both scores"
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
-    (keys (errors-and-failures rm 500 sine-data)) => [:mse :failures :error-vector]
+    (keys (errors-and-failures rm 5 sine-data)) => [:mse :failures :error-vector]
   ))
 
 
 (fact "record-errors modifies a RegisterMachine"
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
-    (keys (record-errors rm 500 sine-data)) =>
+    (keys (record-errors rm 5 sine-data)) =>
       [:read-only :connectors :program :error-vector :mse :failures]
 ))
 

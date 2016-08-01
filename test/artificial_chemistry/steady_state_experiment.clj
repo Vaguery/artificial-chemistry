@@ -20,7 +20,7 @@
 
 (def starting-pile
   (repeatedly 
-    10 
+    100 
     #(randomize-read-only
       (random-register-machine all-functions 11 30 100)
         100
@@ -28,7 +28,7 @@
 
 
 (def scored-start-pile
-  (map #(record-errors % 500 (take 50 (shuffle x6-data))) starting-pile))
+  (pmap #(record-errors % 5 (take 50 (shuffle x6-data))) starting-pile))
 
 ; (println 
 ;   (map :mse scored-start-pile))
@@ -105,7 +105,7 @@
 (defn generational-breed-many
   "Takes a collection of RegisterMachines. Returns a collection of N new crossover products"
   [pile size]
-  (repeatedly size #(steady-state-breed-one pile)))
+  (repeatedly size #(mutate (steady-state-breed-one pile) 0.03)))
 
 
 (fact
@@ -121,48 +121,50 @@
 
 (fact
   (count (generational-cull-many 
-            (map #(record-errors % 10 x6-data) starting-pile) 3)) => 3)
+            (map #(record-errors % 5 x6-data) starting-pile) 3)) => 3)
 
 
 (defn score-pile
-  [pile steps data]
-  (map #(record-errors % steps (take 50 (shuffle data))) pile))
+  [pile scale-factor data]
+  (pmap #(record-errors % scale-factor (take 50 (shuffle data))) pile))
 
 
 
 (defn one-generational-step
   "Assumes machines are scored before arriving; shuffles and samples data for each evaluation"
-  [pile steps data]
+  [pile scale-factor data]
   (let [n (count pile)]
   (into []
     (-> pile
-      (into , (generational-breed-many pile (* 5 n)))
-      (score-pile , steps data)
+      (into , (generational-breed-many pile n))
+      (score-pile , scale-factor data)
       (generational-cull-many , n)
       ))))
 
 
 (defn multiple-score-samples
-  "Takes a RegisterMachine, a number of steps to run, a dataset, and a number of replications to sample. Returns the `:mse` measured for each replication, on each of the training cases, for just that machine."
-  [rm steps data replicates]
+  "Takes a RegisterMachine, a scale factor, a dataset, and a number of replications to sample. Returns the `:mse` measured for each replication, on each of the training cases, for just that machine."
+  [rm scale-factor data replicates]
   (take replicates 
-    (iterate #(record-errors % steps data) rm)))
+    (iterate #(record-errors % scale-factor data) rm)))
 
 
 ; (fact
 ;   (map :error-vector
-;     (multiple-score-samples (first starting-pile) 500 (take 100 x6-data) 5)) => 9)
+;     (multiple-score-samples (first starting-pile) 5 (take 100 x6-data) 5)) => 9)
 
-; (do
-;   (spit "generational-rms.csv" "")
-;   (loop [pile scored-start-pile
-;          step 0]
-;     (if (> step 10)
-;       (report-best "generational-rms-best.csv" step pile)
-;       (do
-;         (report-line "generational-rms.csv" step pile)
-;         (recur (one-generational-step pile 500 x6-data)
-;                (inc step))
-;                ))))
+(do
+  (spit "generational-rms.csv" "")
+  (loop [pile scored-start-pile
+         step 0]
+    (if (or (> step 500) (< (:mse (first pile)) 0.001))
+      (do 
+        (report-line "generational-rms.csv" step pile)
+        (report-best "generational-rms-best.csv" step pile))
+      (do
+        (report-line "generational-rms.csv" step pile)
+        (recur (one-generational-step pile 5 x6-data)
+               (inc step))
+               ))))
 
 

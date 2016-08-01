@@ -183,9 +183,9 @@
 
 
 (defn errors-and-failures
-  "Takes a RegisterMachine and number of steps to run it, and a bunch of training cases, runs the machine for each case, collects the error-vector, and returns two scores: the MSE of all numerical results, and the count of non-numerical results"
-  [rm steps data]
-  (let [errs (error-vector rm steps data)
+  "Takes a RegisterMachine, a repeat scale and a bunch of training cases, runs the machine for each case (scale times for each program step it contains), collects the error-vector, and returns two scores: the MSE of all numerical results, and the count of non-numerical results"
+  [rm scale data]
+  (let [errs (error-vector rm (* scale (count (:program rm))) data)
         bad  (filter isNaN? errs)
         good (filter #(not (isNaN? %)) errs)]
       {:mse (mean-squared-error good) :failures (count bad) :error-vector errs}
@@ -193,9 +193,9 @@
 
 
 (defn record-errors
-  "Takes a RegisterMachine, a number of steps to run it, and a pile of training cases. Evaluates the machine over each training step, calcluates its `error-vector` and `errors-and-failures` hash, and associates those into the RegisterMachine, which is returned"
-  [rm steps data]
-  (let [enf (errors-and-failures rm steps data)]
+  "Takes a RegisterMachine, scale factor for running, and a pile of training cases. Evaluates the machine over each training step, calcluates its `error-vector` and `errors-and-failures` hash, and associates those into the RegisterMachine, which is returned"
+  [rm scale data]
+  (let [enf (errors-and-failures rm scale data)]
     (-> rm
       (assoc , :error-vector (:error-vector enf))
       (assoc , :mse (:mse enf))
