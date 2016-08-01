@@ -20,7 +20,7 @@
 
 (def starting-pile
   (repeatedly 
-    100 
+    10 
     #(randomize-read-only
       (random-register-machine all-functions 11 30 100)
         100
@@ -100,6 +100,40 @@
             "\n")
           :append true)
           ))
+
+
+(defn generational-breed-many
+  "Takes a collection of RegisterMachines. Returns a collection of N new crossover products"
+  [pile size]
+  (repeatedly size #(steady-state-breed-one pile)))
+
+
+(fact
+  (count (generational-breed-many starting-pile 20)) => 20)
+
+
+(defn generational-cull-many
+  [pile keep]
+  (take keep 
+    (sort-by
+      #(+ (:mse %) (* 100000 (:failures %)))
+     (shuffle pile))))
+
+(fact
+  (count (generational-cull-many 
+            (map #(record-errors % 10 x6-data) starting-pile) 3)) => 3)
+
+; (defn one-generational-step
+;   "Assumes the machines are scored before arriving"
+;   [pile steps data]
+;   (let [baby (record-errors (steady-state-breed-one pile) steps data)
+;         mute (record-errors (mutate (rand-nth pile) 0.05) steps data)]
+;     (-> pile
+;         (conj , mute)
+;         steady-state-cull-one
+;         (conj , baby)
+;     )))
+
 
 
 
