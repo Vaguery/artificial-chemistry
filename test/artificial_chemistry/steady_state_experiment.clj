@@ -20,7 +20,7 @@
 
 (def starting-pile
   (repeatedly 
-    100 
+    20 
     #(randomize-read-only
       (random-register-machine all-functions 11 30 100)
         100
@@ -103,15 +103,15 @@
 
 
 
-(do
-  (spit "steady-state-rms.csv" "")
-  (loop [pile scored-start-pile
-         step 0]
-    (if (> step 10000)
-      (report-best step pile)
-      (do
-        (report-line step pile)
-        (recur (one-steady-state-step pile 500 (take 50 (shuffle x6-data)))
-               (inc step))
-               ))))
+; (do
+;   (spit "steady-state-rms.csv" "")
+;   (loop [pile scored-start-pile
+;          step 0]
+;     (if (> step 10000)
+;       (report-best step pile)
+;       (do
+;         (report-line step pile)
+;         (recur (one-steady-state-step pile 500 (take 50 (shuffle x6-data)))
+;                (inc step))
+;                ))))
 

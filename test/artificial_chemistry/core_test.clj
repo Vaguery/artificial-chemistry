@@ -26,32 +26,32 @@
 
 
 (fact "I can make a new ProgramStep"
-  (:function (->ProgramStep '+' [9 12] 3)) => '+'
-  (:args     (->ProgramStep '+' [9 12] 3)) => [9 12]
-  (:target   (->ProgramStep '+' [9 12] 3)) => 3
+  (:function (->ProgramStep '+' [9 12] 3 "ADD")) => '+'
+  (:args     (->ProgramStep '+' [9 12] 3 "ADD")) => [9 12]
+  (:target   (->ProgramStep '+' [9 12] 3 "ADD")) => 3
   )
 
 
 (fact "I can invoke a ProgramStep 'on' a RegisterMachine"
   (let [rm (->RegisterMachine [9 8 7] [4 5 6] [:foo])]
 
-    (invoke (->ProgramStep +' [5 1] 0) rm) =>
+    (invoke (->ProgramStep +' [5 1] 0 "ADD") rm) =>
       (->RegisterMachine [9 8 7] [14 5 6] [:foo])
 
-    (invoke (->ProgramStep -' [2 1] 0) rm) =>
+    (invoke (->ProgramStep -' [2 1] 0 "-") rm) =>
       (->RegisterMachine [9 8 7] [-1 5 6] [:foo])
 
-    (invoke (->ProgramStep *' [0 3] 1) rm) =>
+    (invoke (->ProgramStep *' [0 3] 1 "*") rm) =>
       (->RegisterMachine [9 8 7] [4 36 6] [:foo])
 
-    (invoke (->ProgramStep pdiv [4 3] 0) rm) =>
+    (invoke (->ProgramStep pdiv [4 3] 0 "/") rm) =>
       (->RegisterMachine [9 8 7] [5/4 5 6] [:foo])
   ))
 
 
 (fact "protected division returns 1.0 instead of blowing up"
   (let [rm (->RegisterMachine [0 0 0] [0 0 0] [:foo])]
-    (invoke (->ProgramStep pdiv [4 3] 0) rm) =>
+    (invoke (->ProgramStep pdiv [4 3] 0 "/") rm) =>
       (->RegisterMachine [0 0 0] [1.0 0 0] [:foo])
   ))
 
@@ -59,7 +59,7 @@
 (fact "exponentiation doesn't blow up"
   (let [rm (->RegisterMachine [-2 1/4] [0] [:foo])]
     (Double/isNaN (first (:connectors 
-        (invoke (->ProgramStep pow [0 1] 0) rm)))) =>
+        (invoke (->ProgramStep pow [0 1] 0 "^") rm)))) =>
       true
 ))
 
@@ -107,8 +107,8 @@
 
 (fact "random-program-step with arity 1"
   (random-program-step all-functions 10 12) =>
-    (->ProgramStep rm-not [17] 7)
-  (provided (rand-nth all-functions) => [rm-not 1],
+    (->ProgramStep rm-not [17] 7 "NOT")
+  (provided (rand-nth all-functions) => [rm-not 1 "NOT"],
             (rand-int 22) => 17
             (rand-int 12) => 7))
 
@@ -171,7 +171,7 @@
 
 
 (fact "output-given-inputs steps a bunch and returns a number"
-  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0 "ADD")])]
     (output-given-inputs rm 5 [99]) => 104
     (output-given-inputs rm 1 [99]) => 100
     (output-given-inputs rm 0 [99]) => 99
@@ -186,20 +186,20 @@
 
 
 (fact "output-vector"
-  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0 "ADD")])]
     (output-given-inputs rm 5 [99]) => 104
     (output-vector rm 5 (list [[99] 888] [[17] 888]) ) => [104 22]
     ))
 
 
 (fact "error-vector"
-  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0 "ADD")])]
     (error-vector rm 5 (list [[99] 100] [[17] 100]) ) => [4 78]
     ))
 
 
 (fact "I can apply error-vector to sine-data"
-  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0 "ADD")])]
     (count (error-vector rm 100 sine-data)) => (count sine-data)
     ))
 
@@ -213,13 +213,13 @@
 
 
 (fact "errors-and-failures returns a hash with both scores"
-  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0 "ADD")])]
     (keys (errors-and-failures rm 500 sine-data)) => [:mse :failures :error-vector]
   ))
 
 
 (fact "record-errors modifies a RegisterMachine"
-  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0)])]
+  (let [rm (->RegisterMachine [1] [1] [(->ProgramStep +' [0 1] 0 "ADD")])]
     (keys (record-errors rm 500 sine-data)) =>
       [:read-only :connectors :program :error-vector :mse :failures]
 ))

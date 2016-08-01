@@ -24,7 +24,7 @@
 
 
 
-(defrecord ProgramStep [function args target])
+(defrecord ProgramStep [function args target string])
 
 
 
@@ -72,19 +72,20 @@
 
 
 (def all-functions
-  [ [+' 2],  [*' 2],     [-' 2],    [pdiv 2],
-    [pow 2], [rm-and 2], [rm-or 2], [rm-not 1]])
+  [ [+' 2 "ADD"],  [*' 2 "MUL"],     [-' 2 "SUB"],    [pdiv 2 "DIV"],
+    [pow 2 "POW"], [rm-and 2 "AND"], [rm-or 2 "OR"], [rm-not 1 "NOT"]])
 
 
 
 (defn random-program-step
   [functions readonly connectors]
   (let [readable (+ readonly connectors)
-       [which-fxn arity] (rand-nth all-functions)]
+       [which-fxn arity string] (rand-nth all-functions)]
   (->ProgramStep
     which-fxn
     (into [] (take arity (repeatedly #(rand-int readable))))
     (rand-int connectors)
+    string
     )
   ))
 
