@@ -3,6 +3,6 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  [roul "0.2.0"]
-                 [rhizome "0.2.7"]]
+                 [macroz/tangle "0.1.9"]]
   :profiles {:dev {:dependencies [[midje "1.8.3"]]}})
   
