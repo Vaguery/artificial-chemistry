@@ -78,9 +78,9 @@
 
 
 (defn report-line
-  [t pile]
+  [filename t pile]
   (do 
-    (spit "steady-state-rms.csv"
+    (spit filename
           (str t ", "
             (clojure.string/join ", " (map :mse pile))
             "\n")
@@ -92,9 +92,9 @@
 
 
 (defn report-best
-  [t pile]
+  [filename t pile]
   (do 
-    (spit "steady-state-bests.csv"
+    (spit filename
           (str t ", "
             (pr-str (second pile))
             "\n")
@@ -123,29 +123,46 @@
   (count (generational-cull-many 
             (map #(record-errors % 10 x6-data) starting-pile) 3)) => 3)
 
-; (defn one-generational-step
-;   "Assumes the machines are scored before arriving"
-;   [pile steps data]
-;   (let [baby (record-errors (steady-state-breed-one pile) steps data)
-;         mute (record-errors (mutate (rand-nth pile) 0.05) steps data)]
-;     (-> pile
-;         (conj , mute)
-;         steady-state-cull-one
-;         (conj , baby)
-;     )))
+
+(defn score-pile
+  [pile steps data]
+  (map #(record-errors % steps (take 50 (shuffle data))) pile))
 
 
 
+(defn one-generational-step
+  "Assumes machines are scored before arriving; shuffles and samples data for each evaluation"
+  [pile steps data]
+  (let [n (count pile)]
+  (into []
+    (-> pile
+      (into , (generational-breed-many pile (* 5 n)))
+      (score-pile , steps data)
+      (generational-cull-many , n)
+      ))))
+
+
+(defn multiple-score-samples
+  "Takes a RegisterMachine, a number of steps to run, a dataset, and a number of replications to sample. Returns the `:mse` measured for each replication, on each of the training cases, for just that machine."
+  [rm steps data replicates]
+  (take replicates 
+    (iterate #(record-errors % steps data) rm)))
+
+
+; (fact
+;   (map :error-vector
+;     (multiple-score-samples (first starting-pile) 500 (take 100 x6-data) 5)) => 9)
 
 ; (do
-;   (spit "steady-state-rms.csv" "")
+;   (spit "generational-rms.csv" "")
 ;   (loop [pile scored-start-pile
 ;          step 0]
-;     (if (> step 10000)
-;       (report-best step pile)
+;     (if (> step 10)
+;       (report-best "generational-rms-best.csv" step pile)
 ;       (do
-;         (report-line step pile)
-;         (recur (one-steady-state-step pile 500 (take 50 (shuffle x6-data)))
+;         (report-line "generational-rms.csv" step pile)
+;         (recur (one-generational-step pile 500 x6-data)
 ;                (inc step))
 ;                ))))
+
 
