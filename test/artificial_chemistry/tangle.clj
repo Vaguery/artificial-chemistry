@@ -79,6 +79,6 @@
             }))
 
 
-(println dot)
+; (println dot)
 
 ; (copy (tangle/dot->svg dot) (file "test.svg"))
