@@ -22,7 +22,7 @@
   (repeatedly 
     100 
     #(randomize-read-only
-      (random-register-machine all-functions 11 30 100)
+      (random-register-machine all-functions 11 30 20)
         100
         )))
 
@@ -66,9 +66,9 @@
 
 (defn one-steady-state-step
   "Assumes the machines are scored before arriving"
-  [pile steps data]
-  (let [baby (record-errors (steady-state-breed-one pile) steps data)
-        mute (record-errors (mutate (rand-nth pile) 0.05) steps data)]
+  [pile scale data]
+  (let [baby (record-errors (steady-state-breed-one pile) scale data)
+        mute (record-errors (mutate (rand-nth pile) 0.05) scale data)]
     (-> pile
         steady-state-cull-one
         (conj , mute)
@@ -153,18 +153,32 @@
 ;   (map :error-vector
 ;     (multiple-score-samples (first starting-pile) 5 (take 100 x6-data) 5)) => 9)
 
+; (do
+;   (spit "generational-rms.csv" "")
+;   (loop [pile scored-start-pile
+;          step 0]
+;     (if (or (> step 500) (< (:mse (first pile)) 0.001))
+;       (do 
+;         (report-line "generational-rms.csv" step pile)
+;         (report-best "generational-rms-best.csv" step pile))
+;       (do
+;         (report-line "generational-rms.csv" step pile)
+;         (recur (one-generational-step pile 5 x6-data)
+;                (inc step))
+;                ))))
+
+
 (do
-  (spit "generational-rms.csv" "")
+  (spit "steady-state-rms.csv" "")
   (loop [pile scored-start-pile
          step 0]
-    (if (or (> step 500) (< (:mse (first pile)) 0.001))
+    (if (or (> step 50000) (< (:mse (first pile)) 0.001))
       (do 
-        (report-line "generational-rms.csv" step pile)
-        (report-best "generational-rms-best.csv" step pile))
+        (report-line "steady-state-rms.csv" step pile)
+        (report-best "steady-state-rms-best.csv" step pile))
       (do
-        (report-line "generational-rms.csv" step pile)
-        (recur (one-generational-step pile 5 x6-data)
+        (report-line "steady-state-rms.csv" step pile)
+        (recur (one-steady-state-step pile 5 x6-data)
                (inc step))
                ))))
-
 
