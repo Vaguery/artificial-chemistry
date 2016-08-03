@@ -67,7 +67,7 @@
   [pile]
   (butlast 
     (sort-by
-      #(+ (:mse %) (* 100000 (:failures %)))
+      #(+ (:mse %) (* 1000000000 (:failures %)))
      (shuffle pile))))
 
 
@@ -132,7 +132,7 @@
   [pile keep]
   (take keep 
     (sort-by
-      #(+ (:mse %) (* 100000 (:failures %)))
+      #(+ (:mse %) (* 1000000000 (:failures %)))
      (shuffle pile))))
 
 (fact
