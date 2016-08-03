@@ -18,12 +18,23 @@
 
 
 
+(defn random-birthday-case
+  []
+  (let [x (+ (rand 100) -50)]
+    [[x] (+ (* 9 x x) (* 11 x) 1964)]
+    ))
+
+
+(def birthday-data
+  (repeatedly 100 random-birthday-case))
+
+
 (def starting-pile
   (repeatedly 
     100 
     #(randomize-read-only
-      (random-register-machine all-functions 11 30 20)
-        100
+      (random-register-machine all-functions 11 30 100)
+        10
         )))
 
 
@@ -68,7 +79,7 @@
   "Assumes the machines are scored before arriving"
   [pile scale data]
   (let [baby (record-errors (steady-state-breed-one pile) scale data)
-        mute (record-errors (mutate (rand-nth pile) 0.05) scale data)]
+        mute (record-errors (mutate (rand-nth pile) 0.1) scale data)]
     (-> pile
         steady-state-cull-one
         (conj , mute)
@@ -136,7 +147,7 @@
   (let [n (count pile)]
   (into []
     (-> pile
-      (into , (generational-breed-many pile n))
+      (into , (generational-breed-many pile (* 5 n)))
       (score-pile , scale-factor data)
       (generational-cull-many , n)
       ))))
@@ -153,32 +164,32 @@
 ;   (map :error-vector
 ;     (multiple-score-samples (first starting-pile) 5 (take 100 x6-data) 5)) => 9)
 
-; (do
-;   (spit "generational-rms.csv" "")
-;   (loop [pile scored-start-pile
-;          step 0]
-;     (if (or (> step 500) (< (:mse (first pile)) 0.001))
-;       (do 
-;         (report-line "generational-rms.csv" step pile)
-;         (report-best "generational-rms-best.csv" step pile))
-;       (do
-;         (report-line "generational-rms.csv" step pile)
-;         (recur (one-generational-step pile 5 x6-data)
-;                (inc step))
-;                ))))
-
-
 (do
-  (spit "steady-state-rms.csv" "")
+  (spit "generational-rms-bday.csv" "")
   (loop [pile scored-start-pile
          step 0]
-    (if (or (> step 50000) (< (:mse (first pile)) 0.001))
+    (if (or (> step 1000) (< (:mse (first pile)) 0.0001))
       (do 
-        (report-line "steady-state-rms.csv" step pile)
-        (report-best "steady-state-rms-best.csv" step pile))
+        (report-line "generational-rms-bday.csv" step pile)
+        (report-best "generational-rms-bday-best.csv" step pile))
       (do
-        (report-line "steady-state-rms.csv" step pile)
-        (recur (one-steady-state-step pile 5 x6-data)
+        (report-line "generational-rms-bday.csv" step pile)
+        (recur (one-generational-step pile 5 birthday-data)
                (inc step))
                ))))
+
+
+; (do
+;   (spit "steady-state-rms.csv" "")
+;   (loop [pile scored-start-pile
+;          step 0]
+;     (if (or (> step 50000) (< (:mse (first pile)) 0.001))
+;       (do 
+;         (report-line "steady-state-rms.csv" step pile)
+;         (report-best "steady-state-rms-best.csv" step pile))
+;       (do
+;         (report-line "steady-state-rms.csv" step pile)
+;         (recur (one-steady-state-step pile 5 x6-data)
+;                (inc step))
+;                ))))
 
