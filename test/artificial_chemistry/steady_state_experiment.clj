@@ -38,8 +38,13 @@
         )))
 
 
+(defn score-pile
+  [dataset]
+  (pmap #(record-errors % 5 (take 50 (shuffle dataset))) starting-pile))
+
+
 (def scored-start-pile
-  (pmap #(record-errors % 5 (take 50 (shuffle x6-data))) starting-pile))
+  (score-pile birthday-data))
 
 ; (println 
 ;   (map :mse scored-start-pile))
@@ -79,7 +84,7 @@
   "Assumes the machines are scored before arriving"
   [pile scale data]
   (let [baby (record-errors (steady-state-breed-one pile) scale data)
-        mute (record-errors (mutate (rand-nth pile) 0.1) scale data)]
+        mute (record-errors (mutate (rand-nth pile) 0.03) scale data)]
     (-> pile
         steady-state-cull-one
         (conj , mute)
@@ -147,7 +152,7 @@
   (let [n (count pile)]
   (into []
     (-> pile
-      (into , (generational-breed-many pile (* 5 n)))
+      (into , (generational-breed-many pile  n))
       (score-pile , scale-factor data)
       (generational-cull-many , n)
       ))))
