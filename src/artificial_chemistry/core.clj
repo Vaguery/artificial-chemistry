@@ -24,7 +24,7 @@
 
 
 
-(defrecord ProgramStep [function args target])
+(defrecord ProgramStep [name function args target])
 
 
 
@@ -72,16 +72,25 @@
 
 
 (def all-functions
-  [ [+' 2],  [*' 2],     [-' 2],    [pdiv 2],
-    [pow 2], [rm-and 2], [rm-or 2], [rm-not 1]])
+  { :add  [+      2]
+    :mul  [*      2]
+    :sub  [-      2]
+    :pdiv [pdiv   2]
+    :pow  [pow    2]
+    :and  [rm-and 2]
+    :or   [rm-or  2]
+    :not  [rm-not 1]
+    })
 
 
 
 (defn random-program-step
+  "Constructs a new ProgramStep record, selecting a random function (uniformly) from the hash provided, and :args and :target values (also uniformly) from the range of `readonly` and `connectors` provided."
   [functions readonly connectors]
   (let [readable (+ readonly connectors)
-       [which-fxn arity] (rand-nth all-functions)]
+       [fn-name  [which-fxn arity]] (rand-nth (seq all-functions))]
   (->ProgramStep
+    fn-name
     which-fxn
     (into [] (take arity (repeatedly #(rand-int readable))))
     (rand-int connectors)
@@ -285,3 +294,19 @@
            )))
 
 
+
+(defn starting-pile
+  "Creates a collection of specified size, of random RegisterMachine instances with the specified number of read-only "
+  [size read-only constant-scale connectors functions]
+  (repeatedly size 
+    #(randomize-read-only
+      (random-register-machine all-functions read-only connectors functions)
+        constant-scale)))
+
+
+
+
+(defn score-pile
+  "Takes a pile of `RegisterMachine` items and a dataset (of training cases). Will score each machine on every entry in the dataset, using the indicated number of samples per function in the programs. For example, if the scaling-factor is 5 and a machine being scored has 100 functions, there will be 500 samples run in generating the score."
+  [machines scaling-factor dataset]
+  (pmap #(record-errors % scaling-factor dataset) machines))
