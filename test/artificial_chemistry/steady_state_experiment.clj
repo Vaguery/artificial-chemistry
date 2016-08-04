@@ -67,7 +67,7 @@
   [pile]
   (butlast 
     (sort-by
-      #(+ (:mse %) (* 1000000000 (:failures %)))
+      #(+ (:mse %) (* 1e12 (:failures %)))
      (shuffle pile))))
 
 
@@ -84,7 +84,7 @@
   "Assumes the machines are scored before arriving"
   [pile scale data]
   (let [baby (record-errors (steady-state-breed-one pile) scale data)
-        mute (record-errors (mutate (rand-nth pile) 0.03) scale data)]
+        mute (record-errors (mutate (rand-nth pile) 0.03 1.0) scale data)]
     (-> pile
         steady-state-cull-one
         (conj , mute)
@@ -120,19 +120,19 @@
 
 (defn generational-breed-many
   "Takes a collection of RegisterMachines. Returns a collection of N new crossover products"
-  [pile size]
-  (repeatedly size #(mutate (steady-state-breed-one pile) 0.03)))
+  [pile size stdev]
+  (repeatedly size #(mutate (steady-state-breed-one pile) 0.03 1000)))
 
 
 (fact
-  (count (generational-breed-many starting-pile 20)) => 20)
+  (count (generational-breed-many starting-pile 20 1)) => 20)
 
 
 (defn generational-cull-many
   [pile keep]
   (take keep 
     (sort-by
-      #(+ (:mse %) (* 1000000000 (:failures %)))
+      #(+ (:mse %) (* 1e12 (:failures %)))
      (shuffle pile))))
 
 (fact
@@ -148,11 +148,11 @@
 
 (defn one-generational-step
   "Assumes machines are scored before arriving; shuffles and samples data for each evaluation"
-  [pile scale-factor data]
+  [pile scale-factor data stdev]
   (let [n (count pile)]
   (into []
     (-> pile
-      (into , (generational-breed-many pile  n))
+      (into , (generational-breed-many pile n stdev))
       (score-pile , scale-factor data)
       (generational-cull-many , n)
       ))))
@@ -173,13 +173,13 @@
   (spit "generational-rms-bday.csv" "")
   (loop [pile scored-start-pile
          step 0]
-    (if (or (> step 1000) (< (:mse (first pile)) 0.0001))
+    (if (or (> step 5000) (< (:mse (first pile)) 0.0001))
       (do 
         (report-line "generational-rms-bday.csv" step pile)
         (report-best "generational-rms-bday-best.csv" step pile))
       (do
         (report-line "generational-rms-bday.csv" step pile)
-        (recur (one-generational-step pile 5 birthday-data)
+        (recur (one-generational-step pile 5 birthday-data 1000)
                (inc step))
                ))))
 

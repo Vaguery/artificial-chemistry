@@ -239,11 +239,11 @@
 
 (defn mutate-registers
   "Takes one RegisterMachine, and a probability of mutation. With specified probability it replaces each entry in `:read-only` with a gaussian deviate with mean equal to the original value, and standard deviation equal to 1.0"
-  [rm prob]
+  [rm prob stdev]
   (let [old-registers (:read-only rm)]
     (assoc rm 
            :read-only
-           (map #(if (< (rand) prob) (rr/rand-gaussian % 1.0) %) old-registers))
+           (map #(if (< (rand) prob) (rr/rand-gaussian % stdev) %) old-registers))
     ))
 
 
@@ -257,10 +257,10 @@
 
 
 (defn mutate
-  "Takes a RegisterMachine and a probability, and changes both the `:read-only` registers and the program steps with that probability."
-  [rm prob]
+  "Takes a RegisterMachine and a probability and a standard deviation of the change, and changes both the `:read-only` registers and the program steps with that probability."
+  [rm prob stdev]
   (-> rm
-      (mutate-registers , prob)
+      (mutate-registers , prob stdev)
       (mutate-program , prob)))
 
 

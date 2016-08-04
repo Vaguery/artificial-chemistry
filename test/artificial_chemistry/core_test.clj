@@ -285,9 +285,9 @@
 
 (fact "mutate-registers"
   (let [rm (->RegisterMachine [1 1 1 1] [] [])]
-    (:read-only (mutate-registers rm 0.0)) => (:read-only rm)
-    (:read-only (mutate-registers rm 1.0)) =not=> (contains 1)
-    (:read-only (mutate-registers rm 1.0)) => [99 99 99 99]
+    (:read-only (mutate-registers rm 0.0 1.0)) => (:read-only rm)
+    (:read-only (mutate-registers rm 1.0 1.0)) =not=> (contains 1)
+    (:read-only (mutate-registers rm 1.0 1.0)) => [99 99 99 99]
       (provided (rr/rand-gaussian 1 1.0) => 99)
     ))
 
