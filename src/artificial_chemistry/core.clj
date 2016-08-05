@@ -70,16 +70,23 @@
   ))
 
 
+; (defn rm-copy
+;   "copy item from one register to another"
+;   [n1] 
+;   n1)
+
+
 
 (def all-functions
-  { :add  [+      2]
-    :mul  [*      2]
-    :sub  [-      2]
-    :pdiv [pdiv   2]
-    :pow  [pow    2]
-    :and  [rm-and 2]
-    :or   [rm-or  2]
-    :not  [rm-not 1]
+  { :add  [+       2]
+    :mul  [*       2]
+    :sub  [-       2]
+    :pdiv [pdiv    2]
+    :pow  [pow     2]
+    :and  [rm-and  2]
+    :or   [rm-or   2]
+    :not  [rm-not  1]
+    ; :copy [rm-copy 1]
     })
 
 
@@ -352,7 +359,8 @@
   (do 
     (spit filename
           (str t ", "
-            (clojure.string/join ", " (map :mse pile))
+            (clojure.string/join ", " (map :mse pile)) ", "
+            (clojure.string/join ", " (map #(count (:program %)) pile))
             "\n")
           :append true)
     (println
@@ -391,10 +399,17 @@
 (defn one-generational-step
   "Assumes machines are scored before arriving; shuffles and samples data for each evaluation"
   [pile scale-factor data mutation-rate mutation-stdev mse-weight fail-weight]
-  (let [n (count pile)]
+  (let [n (count pile)
+        best (:first pile)
+        ro (count (:read-only best))
+        scale (max (:read-only best))
+        cxn (count (:connectors best))
+        fxn-count (count (:program best))
+        ]
   (into []
     (-> pile
-      (into , (generational-breed-many pile n mutation-rate mutation-stdev))
+      (into , (starting-pile n ro scale cxn fxn-count all-functions))
+      ; (into , (generational-breed-many pile n mutation-rate mutation-stdev))
       (score-pile , scale-factor data)
       (generational-cull-many , n mse-weight fail-weight)
       ))))
