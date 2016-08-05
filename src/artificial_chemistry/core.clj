@@ -297,10 +297,10 @@
 
 (defn starting-pile
   "Creates a collection of specified size, of random RegisterMachine instances with the specified number of read-only "
-  [size read-only constant-scale connectors functions]
+  [size read-only constant-scale connectors functions function-set]
   (repeatedly size 
     #(randomize-read-only
-      (random-register-machine all-functions read-only connectors functions)
+      (random-register-machine function-set read-only connectors functions)
         constant-scale)))
 
 
@@ -310,3 +310,136 @@
   "Takes a pile of `RegisterMachine` items and a dataset (of training cases). Will score each machine on every entry in the dataset, using the indicated number of samples per function in the programs. For example, if the scaling-factor is 5 and a machine being scored has 100 functions, there will be 500 samples run in generating the score."
   [machines scaling-factor dataset]
   (pmap #(record-errors % scaling-factor dataset) machines))
+
+
+
+(defn breed-one
+  "Takes a collection of RegisterMachines. Returns one new crossover product, produced by sampling two parents with uniform probbaility (with replacement) from the pile. Does not add it back into the pile."
+  [pile]
+  (let [mom  (rand-nth pile)
+        dad  (rand-nth pile)]
+    (crossover mom dad)
+    ))
+
+
+(defn cull-one
+  "Takes a collection of RegisterMachines, and relative weights for MSE and failures scores. Returns the same collection, lacking one of the machines with the lowest weighted sum of :mse and :failures"
+  [pile mse-weight fail-weight]
+  (butlast 
+    (sort-by
+      #(+ (* mse-weight (:mse %)) (* fail-weight (:failures %)))
+     (shuffle pile))))
+
+
+
+(defn one-steady-state-step
+  "Assumes the machines are scored before arriving"
+  [pile scale data]
+  (let [baby (record-errors (breed-one pile) scale data)
+        mute (record-errors (mutate (rand-nth pile) 0.03 1.0) scale data)]
+    (-> pile
+        cull-one
+        (conj , mute)
+        cull-one
+        (conj , baby)
+    )))
+
+
+
+
+(defn report-line
+  [filename t pile]
+  (do 
+    (spit filename
+          (str t ", "
+            (clojure.string/join ", " (map :mse pile))
+            "\n")
+          :append true)
+    (println
+      (str t ", "
+        (clojure.string/join ", " (take 5 (map :mse pile))) "..."
+        ))))
+
+
+(defn report-best
+  [filename t pile]
+  (do 
+    (spit filename
+          (str t ", "
+            (pr-str (second pile))
+            "\n")
+          :append true)
+          ))
+
+
+(defn generational-breed-many
+  "Takes a collection of RegisterMachines. Returns a collection of N new crossover products"
+  [pile size mutation-rate mutation-stdev]
+  (repeatedly size #(mutate (breed-one pile) mutation-rate mutation-stdev)))
+
+
+
+(defn generational-cull-many
+  [pile keep mse-weight fail-weight]
+  (take keep 
+    (sort-by
+      #(+ (* mse-weight (:mse %)) (* fail-weight (:failures %)))
+     (shuffle pile))))
+
+
+
+(defn one-generational-step
+  "Assumes machines are scored before arriving; shuffles and samples data for each evaluation"
+  [pile scale-factor data mutation-rate mutation-stdev mse-weight fail-weight]
+  (let [n (count pile)]
+  (into []
+    (-> pile
+      (into , (generational-breed-many pile n mutation-rate mutation-stdev))
+      (score-pile , scale-factor data)
+      (generational-cull-many , n mse-weight fail-weight)
+      ))))
+
+
+
+(defn multiple-score-samples
+  "Takes a RegisterMachine, a scale factor, a dataset, and a number of replications to sample. Returns the `:mse` measured for each replication, on each of the training cases, for just that machine."
+  [rm scale-factor data replicates]
+  (take replicates 
+    (iterate #(record-errors % scale-factor data) rm)))
+
+
+
+
+(defn generational-search
+  "Starts a long-running loop of generations, for the specified problem set, and starting with the specified pile of individuals. In each generation, the pile is increased by the indicated factor, mutation is applied, and data files are saved. Old data files are overwritten."
+  [dataset dataname
+    pop-size ro-count constant-scale connector-count function-count function-set 
+    sampling-factor generations
+    mse-weight failure-weight mutation-rate mutant-stdev]
+
+  (let [start-pile (starting-pile pop-size
+                                  ro-count 
+                                  constant-scale 
+                                  connector-count
+                                  function-count
+                                  function-set)
+        start-pile (score-pile start-pile sampling-factor dataset)]
+
+      (spit (str "generational-rms-" dataname ".csv") "")
+
+      (loop [pile start-pile
+             step 0]
+        (if (or (> step generations) (< (:mse (first pile)) 0.0001))
+          (do 
+            (report-line (str "generational-rms-" dataname ".csv") step pile)
+            (report-best (str "generational-rms-" dataname "-best.csv") step pile))
+          (do
+            (report-line (str "generational-rms-" dataname ".csv") step pile)
+            (recur (one-generational-step 
+                      pile sampling-factor dataset mutation-rate mutant-stdev
+                      mse-weight failure-weight)
+                   (inc step))
+                   )))))
+
+
+

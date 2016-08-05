@@ -1,4 +1,4 @@
-(ns artificial-chemistry.training-data)
+(ns artificial-chemistry.data)
 
 
 ;; y=x+6 problem

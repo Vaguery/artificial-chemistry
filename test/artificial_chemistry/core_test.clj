@@ -2,7 +2,7 @@
   (:use midje.sweet)
   (:use [artificial-chemistry.core])
   (:require [roul.random :as rr]
-            [artificial-chemistry.training-data :as data]))
+            [artificial-chemistry.data :as data]))
 
 
 (fact "I can make a new RegisterMachine"
@@ -308,7 +308,7 @@
 
 (fact "starting-pile produces a collection of RegisterMachine items"
   (against-background (rand) => 1.0)
-  (let [pile (starting-pile 2 3 4 5 6)]
+  (let [pile (starting-pile 2 3 4 5 6 all-functions)]
     (count pile) => 2
     (count (:read-only (first pile))) => 3
     (:read-only (first pile)) => [4.0 4.0 4.0]
@@ -318,9 +318,15 @@
 
 
 
-; (fact "score-pile"
-;   (let [rms (vector (->RegisterMachine [1 2] [1 2] []))]
-;     (score-pile rms 5 (take 3 data/x6-training-data)) => 99
-;     ))
-
+(fact "score-pile"
+  (let [f1  (->ProgramStep :add + [0 1] 0)
+        rms (vector (->RegisterMachine [1 2] [1 2] [f1])
+                    (->RegisterMachine [2 1] [3 3] [f1]))]
+    (count
+      (:error-vector
+        (first (score-pile rms 5 (take 3 data/x6-training-data))))) => 3
+    (count
+      (:error-vector
+        (second (score-pile rms 5 (take 3 data/x6-training-data))))) => 3
+    ))
 
