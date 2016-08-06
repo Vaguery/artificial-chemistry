@@ -94,7 +94,9 @@
   )
 
 
-(def fxn-fixture (seq all-functions))
+(def fxn-fixture (sort (seq all-functions)))
+
+;; :add :and :copy :mul :not :or :pdiv :pow :sub 
 
 
 (fact "random-program-step"
@@ -109,13 +111,11 @@
 
 
 
-
-
 (fact "I can create and invoke a random-program-step"
   (let [rm (->RegisterMachine [9 8 7] [4 5 6] [:foo])]
     (invoke (random-program-step all-functions 3 3) rm) =>
-      (->RegisterMachine [9 8 7] [49 5 6] [:foo])
-        (provided (rand-nth fxn-fixture) => (second fxn-fixture)
+      (->RegisterMachine [9 8 7] [14 5 6] [:foo])
+        (provided (rand-nth fxn-fixture) => (first fxn-fixture)
                   (rand-int 6) => 2
                   (rand-int 3) => 0)
 

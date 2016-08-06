@@ -95,7 +95,7 @@
   "Constructs a new ProgramStep record, selecting a random function (uniformly) from the hash provided, and :args and :target values (also uniformly) from the range of `readonly` and `connectors` provided."
   [functions readonly connectors]
   (let [readable (+ readonly connectors)
-       [fn-name  [which-fxn arity]] (rand-nth (seq all-functions))]
+       [fn-name  [which-fxn arity]] (rand-nth (sort (seq all-functions)))]
   (->ProgramStep
     fn-name
     which-fxn
