@@ -70,10 +70,10 @@
   ))
 
 
-; (defn rm-copy
-;   "copy item from one register to another"
-;   [n1] 
-;   n1)
+(defn rm-copy
+  "copy item from one register to another"
+  [n1] 
+  n1)
 
 
 
@@ -305,10 +305,10 @@
 (defn starting-pile
   "Creates a collection of specified size, of random RegisterMachine instances with the specified number of read-only "
   [size read-only constant-scale connectors functions function-set]
-  (repeatedly size 
+  (into [] (repeatedly size 
     #(randomize-read-only
       (random-register-machine function-set read-only connectors functions)
-        constant-scale)))
+        constant-scale))))
 
 
 
@@ -400,19 +400,20 @@
   "Assumes machines are scored before arriving; shuffles and samples data for each evaluation"
   [pile scale-factor data mutation-rate mutation-stdev mse-weight fail-weight]
   (let [n (count pile)
-        best (:first pile)
+        best (first pile)
         ro (count (:read-only best))
-        scale (max (:read-only best))
+        scale (apply max (:read-only best))
         cxn (count (:connectors best))
         fxn-count (count (:program best))
         ]
-  (into []
-    (-> pile
-      (into , (starting-pile n ro scale cxn fxn-count all-functions))
-      ; (into , (generational-breed-many pile n mutation-rate mutation-stdev))
-      (score-pile , scale-factor data)
-      (generational-cull-many , n mse-weight fail-weight)
-      ))))
+
+    (into []
+      (-> pile
+        (into , (starting-pile n ro scale cxn fxn-count all-functions))
+        (into , (generational-breed-many pile n mutation-rate mutation-stdev))
+        (score-pile , scale-factor data)
+        (generational-cull-many , n mse-weight fail-weight)
+        ))))
 
 
 
