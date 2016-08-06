@@ -86,7 +86,7 @@
     :and  [rm-and  2]
     :or   [rm-or   2]
     :not  [rm-not  1]
-    ; :copy [rm-copy 1]
+    :copy [rm-copy 1]
     })
 
 

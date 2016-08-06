@@ -8,6 +8,6 @@
   "run a generational search"
   (generational-search 
     birthday-data "bday" 
-    100 11 1e6 30 100 all-functions 
+    100 11 1e6 30 50 all-functions 
     5 500 
-    1 1e12 0.05 1000) => 99)
+    1 1e12 0.02 1000) => 99)
