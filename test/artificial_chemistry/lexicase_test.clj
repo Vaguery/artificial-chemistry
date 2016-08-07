@@ -38,12 +38,21 @@
 
 
 
+; (fact :lexicase
+;   "run a lexicase search"
+;   (lexicase-search 
+;     birthday-data "bday" 
+;     100 11 1e6 30 50 all-functions 
+;     5 500 
+;     1 1e12 0.05 1e3) => 99)
+
+
 (fact :lexicase
-  "run a lexicase search"
+  "run a lexicase search on y=11x "
   (lexicase-search 
-    x6-training-data "x6" 
-    20 11 10 30 50 all-functions 
+    x-times-11-data "11x" 
+    100 11 1e6 30 50 all-functions 
     5 500 
-    1 1e12 0.05 1) => 99)
+    1 1e12 0.02 1000) => 99)
 
 

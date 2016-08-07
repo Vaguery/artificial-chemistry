@@ -27,3 +27,44 @@
 
 (def birthday-data
   (repeatedly 100 random-birthday-case))
+
+
+;; year problem
+
+(defn random-year-case
+  []
+  (let [x (+ (rand 100) -50)]
+    [[x] 1964]
+    ))
+
+
+(def year-data
+  (repeatedly 100 random-year-case))
+
+
+
+;; 11x problem
+
+(defn random-x-times-11-case
+  []
+  (let [x (+ (rand 100) -50)]
+    [[x] (* x 11)]
+    ))
+
+
+(def x-times-11-data
+  (repeatedly 100 random-x-times-11-case))
+
+
+;; x^2 problem
+
+(defn random-x-squared-case
+  []
+  (let [x (+ (rand 100) -50)]
+    [[x] (* x x)]
+    ))
+
+
+(def x-squared-data
+  (repeatedly 100 random-x-squared-case))
+

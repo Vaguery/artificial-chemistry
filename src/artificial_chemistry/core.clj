@@ -320,6 +320,8 @@
 
 
 
+
+
 (defn breed-one
   "Takes a collection of RegisterMachines. Returns one new crossover product, produced by sampling two parents with uniform probbaility (with replacement) from the pile. Does not add it back into the pile."
   [pile]
@@ -366,7 +368,8 @@
     (println
       (str t ", "
         (clojure.string/join ", " (take 5 (map :mse pile))) "..."
-        ))))
+        ))
+    ))
 
 
 (defn report-best
@@ -424,6 +427,13 @@
     (iterate #(record-errors % scale-factor data) rm)))
 
 
+(defn report-consistency
+  "Takes a pile, picks the first machine, and runs it N times, printing the measured MSE"
+  [pile scale-factor data replicates]
+  (println "  consistency: "
+    (clojure.string/join ", " 
+      (map :mse (multiple-score-samples (first pile) scale-factor data replicates)))))
+
 
 
 (defn generational-search
@@ -445,17 +455,15 @@
 
       (loop [pile start-pile
              step 0]
+        (report-line (str "generational-rms-" dataname ".csv") step pile)
+        ; (report-consistency pile sampling-factor dataset 10)
         (if (or (> step generations) (< (:mse (first pile)) 0.0001))
-          (do 
-            (report-line (str "generational-rms-" dataname ".csv") step pile)
-            (report-best (str "generational-rms-" dataname "-best.csv") step pile))
-          (do
-            (report-line (str "generational-rms-" dataname ".csv") step pile)
-            (recur (one-generational-step 
+          (report-best (str "generational-rms-" dataname "-best.csv") step pile)
+          (recur (one-generational-step 
                       pile sampling-factor dataset mutation-rate mutant-stdev
                       mse-weight failure-weight)
                    (inc step))
-                   )))))
+                   ))))
 
 
 

@@ -51,13 +51,14 @@
         scale (apply max (:read-only best))
         cxn (count (:connectors best))
         fxn-count (count (:program best))
+        subset (take (/ (count data) 2) (shuffle data))
         ]
 
     (into []
-      (-> pile
+      (-> (shuffle pile)
         (into , (starting-pile n ro scale cxn fxn-count all-functions))
         (into , (generational-breed-many pile n mutation-rate mutation-stdev))
-        (score-pile , scale-factor data)
+        (score-pile , scale-factor subset)
         (lexicase-cull-many , n)
         ))))
 
