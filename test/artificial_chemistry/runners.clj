@@ -8,9 +8,9 @@
   "run a generational search on y=9x^2+11x+1964"
   (generational-search 
     birthday-data "bday" 
-    100 11 1e6 30 50 all-functions 
+    100 11 1e4 30 50 all-functions 
     5 500 
-    1 1e12 0.02 1000) => 99)
+    1 1e12 0.05 10) => 99)
 
 ; (fact :generational
 ;   "run a generational search on y=1964 (constant)"
@@ -44,4 +44,13 @@
 ;     100 11 100 30 20 all-functions 
 ;     5 500 
 ;     1 1e12 0.05 10) => 99)
+
+; (fact :generational
+;   "run a generational search on y=sin(x)"
+;   (generational-search 
+;     sine-data "sine.20" 
+;     100 11 10 30 50 all-functions 
+;     5 500 
+;     1 1e12 0.05 1) => 99)
+
 

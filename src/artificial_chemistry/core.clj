@@ -1,6 +1,7 @@
 (ns artificial-chemistry.core
    (:require [clojure.math.numeric-tower :as math]
-             [roul.random :as rr]))
+             [roul.random :as rr]
+             [com.climate.claypoole :as cp]))
 
 
 (defrecord RegisterMachine [read-only connectors program])
@@ -132,6 +133,12 @@
   (nth (iterate invoke-any-step rm) steps))
 
 
+(defn invoke-ordered-program
+  "Takes a RegisterMachine. Runs the program through, in order."
+  [rm]
+  (reduce (fn [machine step] (invoke step machine)) rm (:program rm)))
+
+
 (defn rm-trace
   "Takes a RegisterMachine and a number of iterations. It returns the lazy sequence of all the `:connectors` registers, recorded once for each step of iteration."
   [rm steps]
@@ -160,6 +167,12 @@
     (invoke-many-steps (set-inputs rm inputs) steps)))
 
 
+(defn output-running-ordered
+  "Takes a RegisterMachine, and a vector of inputs. Overwrites the `:connectors` vector of the RegisterMachine with the inputs (starting at the front end) and executes the program IN ORDER. Returns the value of the last element of `:connectors` at the last step."
+  [rm inputs]
+  (output 
+    (invoke-ordered-program (set-inputs rm inputs))))
+
 
 (defn output-vector
   "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of output values, one for each of the training cases."
@@ -167,11 +180,24 @@
   (map #(output-given-inputs rm steps (first %)) data) )
 
 
+(defn output-vector-ordered
+  "Takes a RegisterMachine, and a training data set. Returns a collection of output values, one for each of the training cases, running the program IN ORDER."
+  [rm data]
+  (map #(output-running-ordered rm (first %)) data) )
+
 
 (defn error-vector
   "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of absolute errors, comparing the output observed for each training case to its expected value."
   [rm steps data]
   (let [outs (output-vector rm steps data)]
+    (into [] (map #(Math/abs (- %1 %2)) outs (pmap second data)))
+    ))
+
+
+(defn error-vector-ordered
+  "Takes a RegisterMachine,  and a training data set. Returns a collection of absolute errors, comparing the output observed for each training case to its expected value. RUNS PROGRAMS IN ORDER."
+  [rm data]
+  (let [outs (output-vector-ordered rm data)]
     (into [] (map #(Math/abs (- %1 %2)) outs (pmap second data)))
     ))
 
@@ -199,6 +225,17 @@
     ))
 
 
+(defn errors-and-failures-ordered
+  "Takes a RegisterMachine, and a bunch of training cases, runs the machine for each case IN ORDER, collects the error-vector, and returns a hash with two scores: the MSE of all numerical results, and the count of non-numerical results"
+  [rm data]
+  (let [errs (error-vector-ordered rm data)
+        bad  (filter isNaN? errs)
+        good (filter #(not (isNaN? %)) errs)]
+      {:sse (sum-squared-error good) :failures (count bad) :error-vector errs}
+    ))
+
+
+
 (defn push-into-value
   "Takes a RegisterMachine, a keyword and an item. If the keyword does not exist, it is first created and an empty vector is assigned its value. Then the item is pushed onto that vector. If the vector already exists, the item is simply pushed."
   [rm kw item]
@@ -211,6 +248,16 @@
   "Takes a RegisterMachine, scale factor for running, and a pile of training cases. Evaluates the machine over each training step, calculates its `error-vector` and `errors-and-failures` hash, which is returned with the new items pushed onto stacks associated with the "
   [rm scale data]
   (let [enf (errors-and-failures rm scale data)]
+    (-> rm
+      (push-into-value , :error-vector (:error-vector enf))
+      (push-into-value , :sse (:sse enf))
+      (push-into-value , :failures (:failures enf)))))
+
+
+(defn record-errors-ordered
+  "Takes a RegisterMachine, and a pile of training cases. Evaluates the machine over each training step RUNNING THE PROGRAM IN ORDER, calculates its `error-vector` and `errors-and-failures` hash, which is returned with the new items pushed onto stacks associated with the "
+  [rm data]
+  (let [enf (errors-and-failures-ordered rm data)]
     (-> rm
       (push-into-value , :error-vector (:error-vector enf))
       (push-into-value , :sse (:sse enf))
@@ -315,7 +362,7 @@
 (defn score-pile
   "Takes a pile of `RegisterMachine` items and a dataset (of training cases). Will score each machine on every entry in the dataset, using the indicated number of samples per function in the programs. For example, if the scaling-factor is 5 and a machine being scored has 100 functions, there will be 500 samples run in generating the score. NOTE: all scores are saved as _stacks_ of scores; each time a RegisterMachine is scored, a new score is _added_ to its stacks."
   [machines scaling-factor dataset]
-  (pmap #(record-errors % scaling-factor dataset) machines))
+  (cp/pmap (+ 2 (cp/ncpus)) #(record-errors % scaling-factor (take 20 (shuffle dataset))) machines))
 
 
 
@@ -411,7 +458,7 @@
 
     (into []
       (-> pile
-        (into , (starting-pile n ro scale cxn fxn-count all-functions))
+        (into , (starting-pile n ro scale cxn (+ fxn-count (rand-int fxn-count)) all-functions))
         (into , (generational-breed-many pile n mutation-rate mutation-stdev))
         (score-pile , scale-factor data)
         (score-pile , scale-factor data)

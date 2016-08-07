@@ -140,6 +140,19 @@
   ))
 
 
+
+(fact "I can run a program through with invoke-ordered-program"
+  (let [rm (->RegisterMachine [9 8 7] [4 5 6]
+              [(->ProgramStep :foo * [0 1] 2)
+               (->ProgramStep :foo * [1 2] 1)
+               (->ProgramStep :foo + [4 5] 0)
+               ])]
+
+  (:connectors (invoke-ordered-program rm)) => [128 56 72]
+ ))
+
+
+
 (fact "I can trace steps with rm-trace"
   (let [rm (->RegisterMachine
               (into [] (take 11 (repeatedly #(rand 100.0))))
