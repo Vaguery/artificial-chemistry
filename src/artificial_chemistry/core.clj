@@ -277,6 +277,18 @@
       ))))
 
 
+(defn crossover-program-ordered
+  "Takes two RegisterMachines. Picks a random point somewhere in each, and exchanges the end of the second one's program for the end of the first one's."
+  [mom dad]
+  (let [mom-program (:program mom)
+        mom-contrib (max 1 (rand-int (count mom-program)))
+        dad-program (:program dad)
+        dad-contrib (max 1 (rand-int (count dad-program)))]
+    (into [] (concat
+      (take mom-contrib mom-program)
+      (drop dad-contrib dad-program))
+      )))
+
 
 (defn mutate-program
   "Tkes a RegisterMachine, and a probability of mutation. Each step of the `:program` is changed with that probability to a completely new `random-program-step` result."
@@ -316,6 +328,17 @@
     (crossover-registers mom dad)
     (:connectors mom)
     (crossover-program mom dad)))
+
+
+
+(defn crossover-ordered
+  "Takes two RegisterMachines, and does crossover on their `:read-only` vectors and programs, using ordered point crossover"
+  [mom dad]
+  (->RegisterMachine
+    (crossover-registers mom dad)
+    (:connectors mom)
+    (crossover-program-ordered mom dad)))
+
 
 
 (defn mutate

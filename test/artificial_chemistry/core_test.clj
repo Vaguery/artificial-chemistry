@@ -346,3 +346,30 @@
         (second (score-pile rms 5 (take 3 data/x6-training-data)))))) => 3
     ))
 
+
+
+; (fact "linear scores"
+;   (let [pile (starting-pile 2 3 4 5 6 all-functions)]
+;     (map #(record-errors-ordered % data/sine-data) pile) => 9
+;     ))
+
+
+
+(fact "crossover-program-ordered"
+  (let [mom (->RegisterMachine [1 2] [1 2] [:a :b :c :d :e])
+        dad (->RegisterMachine [1 2] [1 2] [:A :B :C :D :E])]
+
+  (crossover-program-ordered mom dad) => [:a :b :C :D :E]
+    (provided (rand-int 5) => 2)
+  ))
+
+
+
+(fact "crossover-ordered"
+  (let [mom (->RegisterMachine [1 2] [1 2] [:a :b :c :d :e])
+        dad (->RegisterMachine [3 4] [1 2] [:A :B :C :D :E])]
+
+  (crossover-ordered mom dad) => (->RegisterMachine [:X :Y] [1 2] [:a :b :C :D :E])
+    (provided (rand-int 5) => 2
+              (rand-nth anything) =streams=> [:X :Y])
+  ))
