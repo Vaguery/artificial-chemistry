@@ -1,6 +1,20 @@
 (ns artificial-chemistry.data)
 
 
+;; y=sin(x)
+
+
+(defn random-sine-case
+  []
+  (let [x (- (* 2 (rand Math/PI)) Math/PI)]
+    [[x] (Math/sin x)]
+    ))
+
+
+(def sine-data
+  (repeatedly 100 random-sine-case))
+  
+
 ;; y=x+6 problem
 
 

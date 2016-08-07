@@ -160,17 +160,6 @@
     (invoke-many-steps (set-inputs rm inputs) steps)))
 
 
-(defn random-sine-case
-  []
-  (let [x (- (* 2 (rand Math/PI)) Math/PI)]
-    [[x] (Math/sin x)]
-    ))
-
-
-(def sine-data
-  (repeatedly 100 random-sine-case))
-
-
 
 (defn output-vector
   "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of output values, one for each of the training cases."
@@ -187,7 +176,7 @@
     ))
 
 
-(defn mean-squared-error
+(defn sum-squared-error
   "Takes a collection of numeric values, squares them, adds those to produce a single sum"
   [numbers]
   (reduce + (map #(* %1 %1) numbers)))
@@ -204,7 +193,7 @@
   (let [errs (error-vector rm (* scale (count (:program rm))) data)
         bad  (filter isNaN? errs)
         good (filter #(not (isNaN? %)) errs)]
-      {:mse (mean-squared-error good) :failures (count bad) :error-vector errs}
+      {:mse (sum-squared-error good) :failures (count bad) :error-vector errs}
     ))
 
 

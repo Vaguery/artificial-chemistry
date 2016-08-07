@@ -177,7 +177,7 @@
 
 
 (fact "random-sine-case returns a vector"
-  (let [rsc (random-sine-case)]
+  (let [rsc (data/random-sine-case)]
     (and  (>= (ffirst rsc) (- Math/PI)) (<= (ffirst rsc) Math/PI)) => true
     (second rsc) => (Math/sin (ffirst rsc))
   ))
@@ -198,27 +198,27 @@
 
 (fact "I can apply error-vector to sine-data"
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep :add +' [0 1] 0)])]
-    (count (error-vector rm 5 sine-data)) => (count sine-data)
+    (count (error-vector rm 5 data/sine-data)) => (count data/sine-data)
     ))
 
 
-(fact "mean-squared-error does what the sign says"
-  (mean-squared-error [0 0 0 0 0 0]) => 0
-  (mean-squared-error [0 0 0 0 0 1]) => 1
-  (mean-squared-error [0 0 0 0 0 2]) => 4
-  (mean-squared-error [2 2 2 2 2 2]) => 24
+(fact "sum-squared-error does what the sign says"
+  (sum-squared-error [0 0 0 0 0 0]) => 0
+  (sum-squared-error [0 0 0 0 0 1]) => 1
+  (sum-squared-error [0 0 0 0 0 2]) => 4
+  (sum-squared-error [2 2 2 2 2 2]) => 24
   )
 
 
 (fact "errors-and-failures returns a hash with both scores"
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep :add + [0 1] 0)])]
-    (keys (errors-and-failures rm 5 sine-data)) => [:mse :failures :error-vector]
+    (keys (errors-and-failures rm 5 data/sine-data)) => [:mse :failures :error-vector]
   ))
 
 
 (fact "record-errors modifies a RegisterMachine"
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep :add + [0 1] 0)])]
-    (keys (record-errors rm 5 sine-data)) =>
+    (keys (record-errors rm 5 data/sine-data)) =>
       [:read-only :connectors :program :error-vector :mse :failures]
 ))
 
