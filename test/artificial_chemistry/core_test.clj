@@ -212,14 +212,14 @@
 
 (fact "errors-and-failures returns a hash with both scores"
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep :add + [0 1] 0)])]
-    (keys (errors-and-failures rm 5 data/sine-data)) => [:mse :failures :error-vector]
+    (keys (errors-and-failures rm 5 data/sine-data)) => [:sse :failures :error-vector]
   ))
 
 
 (fact "record-errors modifies a RegisterMachine"
   (let [rm (->RegisterMachine [1] [1] [(->ProgramStep :add + [0 1] 0)])]
     (keys (record-errors rm 5 data/sine-data)) =>
-      [:read-only :connectors :program :error-vector :mse :failures]
+      [:read-only :connectors :program :error-vector :sse :failures]
 ))
 
 
@@ -322,11 +322,14 @@
   (let [f1  (->ProgramStep :add + [0 1] 0)
         rms (vector (->RegisterMachine [1 2] [1 2] [f1])
                     (->RegisterMachine [2 1] [3 3] [f1]))]
-    (count
+    (count (last (:error-vector
+        (first (score-pile rms 5 (take 3 data/x6-training-data)))))) => 3
+    (count (:sse
+        (first (score-pile rms 5 (take 3 data/x6-training-data))))) => 1
+    (:failures
+        (first (score-pile rms 5 (take 3 data/x6-training-data)))) => [0]
+    (count (last
       (:error-vector
-        (first (score-pile rms 5 (take 3 data/x6-training-data))))) => 3
-    (count
-      (:error-vector
-        (second (score-pile rms 5 (take 3 data/x6-training-data))))) => 3
+        (second (score-pile rms 5 (take 3 data/x6-training-data)))))) => 3
     ))
 

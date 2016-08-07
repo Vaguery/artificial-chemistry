@@ -187,24 +187,34 @@
   (Double/isNaN number))
 
 
+
+
 (defn errors-and-failures
-  "Takes a RegisterMachine, a repeat scale and a bunch of training cases, runs the machine for each case (scale times for each program step it contains), collects the error-vector, and returns two scores: the MSE of all numerical results, and the count of non-numerical results"
+  "Takes a RegisterMachine, a repeat scale and a bunch of training cases, runs the machine for each case (scale times for each program step it contains), collects the error-vector, and returns a hash with two scores: the MSE of all numerical results, and the count of non-numerical results"
   [rm scale data]
   (let [errs (error-vector rm (* scale (count (:program rm))) data)
         bad  (filter isNaN? errs)
         good (filter #(not (isNaN? %)) errs)]
-      {:mse (sum-squared-error good) :failures (count bad) :error-vector errs}
+      {:sse (sum-squared-error good) :failures (count bad) :error-vector errs}
+    ))
+
+
+(defn push-into-value
+  "Takes a RegisterMachine, a keyword and an item. If the keyword does not exist, it is first created and an empty vector is assigned its value. Then the item is pushed onto that vector. If the vector already exists, the item is simply pushed."
+  [rm kw item]
+  (let [old (get rm kw [])]
+    (assoc rm kw (conj old item))
     ))
 
 
 (defn record-errors
-  "Takes a RegisterMachine, scale factor for running, and a pile of training cases. Evaluates the machine over each training step, calcluates its `error-vector` and `errors-and-failures` hash, and associates those into the RegisterMachine, which is returned"
+  "Takes a RegisterMachine, scale factor for running, and a pile of training cases. Evaluates the machine over each training step, calculates its `error-vector` and `errors-and-failures` hash, which is returned with the new items pushed onto stacks associated with the "
   [rm scale data]
   (let [enf (errors-and-failures rm scale data)]
     (-> rm
-      (assoc , :error-vector (:error-vector enf))
-      (assoc , :mse (:mse enf))
-      (assoc , :failures (:failures enf)))))
+      (push-into-value , :error-vector (:error-vector enf))
+      (push-into-value , :sse (:sse enf))
+      (push-into-value , :failures (:failures enf)))))
 
 
 (defn crossover-program
@@ -303,11 +313,9 @@
 
 
 (defn score-pile
-  "Takes a pile of `RegisterMachine` items and a dataset (of training cases). Will score each machine on every entry in the dataset, using the indicated number of samples per function in the programs. For example, if the scaling-factor is 5 and a machine being scored has 100 functions, there will be 500 samples run in generating the score."
+  "Takes a pile of `RegisterMachine` items and a dataset (of training cases). Will score each machine on every entry in the dataset, using the indicated number of samples per function in the programs. For example, if the scaling-factor is 5 and a machine being scored has 100 functions, there will be 500 samples run in generating the score. NOTE: all scores are saved as _stacks_ of scores; each time a RegisterMachine is scored, a new score is _added_ to its stacks."
   [machines scaling-factor dataset]
   (pmap #(record-errors % scaling-factor dataset) machines))
-
-
 
 
 
@@ -321,11 +329,12 @@
 
 
 (defn cull-one
-  "Takes a collection of RegisterMachines, and relative weights for MSE and failures scores. Returns the same collection, lacking one of the machines with the lowest weighted sum of :mse and :failures"
+  "Takes a collection of RegisterMachines, and relative weights for MSE and failures scores. Returns the same collection, lacking one of the machines with the lowest weighted sum of (max :sse) and (max :failures)"
   [pile mse-weight fail-weight]
   (butlast 
     (sort-by
-      #(+ (* mse-weight (:mse %)) (* fail-weight (:failures %)))
+      #(+ (* mse-weight (apply max (:sse %))) 
+          (* fail-weight (apply max (:failures %))))
      (shuffle pile))))
 
 
@@ -350,13 +359,13 @@
   (do 
     (spit filename
           (str t ", "
-            (clojure.string/join ", " (map :mse pile)) ", "
+            (clojure.string/join ", " (map #(apply max (:sse %)) pile)) ", "
             (clojure.string/join ", " (map #(count (:program %)) pile))
             "\n")
           :append true)
     (println
       (str t ", "
-        (clojure.string/join ", " (take 5 (map :mse pile))) "..."
+        (clojure.string/join ", " (take 5 (map #(apply max (:sse %)) pile))) "..."
         ))
     ))
 
@@ -383,7 +392,8 @@
   [pile keep mse-weight fail-weight]
   (take keep 
     (sort-by
-      #(+ (* mse-weight (:mse %)) (* fail-weight (:failures %)))
+      #(+ (* mse-weight (apply max (:sse %))) 
+          (* fail-weight (apply max (:failures %))))
      (shuffle pile))))
 
 
@@ -404,13 +414,17 @@
         (into , (starting-pile n ro scale cxn fxn-count all-functions))
         (into , (generational-breed-many pile n mutation-rate mutation-stdev))
         (score-pile , scale-factor data)
+        (score-pile , scale-factor data)
+        (score-pile , scale-factor data)
+        (score-pile , scale-factor data)
+        (score-pile , scale-factor data)
         (generational-cull-many , n mse-weight fail-weight)
         ))))
 
 
 
 (defn multiple-score-samples
-  "Takes a RegisterMachine, a scale factor, a dataset, and a number of replications to sample. Returns the `:mse` measured for each replication, on each of the training cases, for just that machine."
+  "Takes a RegisterMachine, a scale factor, a dataset, and a number of replications to sample. Returns the `:sse` measured for each replication, on each of the training cases, for just that machine."
   [rm scale-factor data replicates]
   (take replicates 
     (iterate #(record-errors % scale-factor data) rm)))
@@ -421,7 +435,7 @@
   [pile scale-factor data replicates]
   (println "  consistency: "
     (clojure.string/join ", " 
-      (map :mse (multiple-score-samples (first pile) scale-factor data replicates)))))
+      (map :sse (multiple-score-samples (first pile) scale-factor data replicates)))))
 
 
 
@@ -445,8 +459,7 @@
       (loop [pile start-pile
              step 0]
         (report-line (str "generational-rms-" dataname ".csv") step pile)
-        ; (report-consistency pile sampling-factor dataset 10)
-        (if (or (> step generations) (< (:mse (first pile)) 0.0001))
+        (if (or (> step generations) (< (apply max (:sse (first pile))) 0.0001))
           (report-best (str "generational-rms-" dataname "-best.csv") step pile)
           (recur (one-generational-step 
                       pile sampling-factor dataset mutation-rate mutant-stdev
