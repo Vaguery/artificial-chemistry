@@ -9,7 +9,7 @@
 (defn sort-by-error-item-with-NaN-worst
   [pile which]
   (sort-by 
-    (fn [rm] (let [k (nth (:error-vector rm) which)] (if (isNaN? k) posInfinity k)))
+    (fn [rm] (let [k (nth (first (:error-vector rm)) which)] (if (isNaN? k) posInfinity k)))
     (shuffle pile)))
 
 
@@ -18,7 +18,7 @@
   [pile]
   (let [pop-size     (count pile)
         exemplar     (first pile)
-        error-count  (count (:error-vector exemplar))
+        error-count  (count (first (:error-vector exemplar)))
         case-order   (shuffle (range error-count))]
     (loop [survivors pile
            criteria  case-order]

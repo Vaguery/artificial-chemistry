@@ -133,12 +133,6 @@
   (nth (iterate invoke-any-step rm) steps))
 
 
-(defn invoke-ordered-program
-  "Takes a RegisterMachine. Runs the program through, in order."
-  [rm]
-  (reduce (fn [machine step] (invoke step machine)) rm (:program rm)))
-
-
 (defn rm-trace
   "Takes a RegisterMachine and a number of iterations. It returns the lazy sequence of all the `:connectors` registers, recorded once for each step of iteration."
   [rm steps]
@@ -167,23 +161,12 @@
     (invoke-many-steps (set-inputs rm inputs) steps)))
 
 
-(defn output-running-ordered
-  "Takes a RegisterMachine, and a vector of inputs. Overwrites the `:connectors` vector of the RegisterMachine with the inputs (starting at the front end) and executes the program IN ORDER. Returns the value of the last element of `:connectors` at the last step."
-  [rm inputs]
-  (output 
-    (invoke-ordered-program (set-inputs rm inputs))))
-
 
 (defn output-vector
   "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of output values, one for each of the training cases."
   [rm steps data]
   (map #(output-given-inputs rm steps (first %)) data) )
 
-
-(defn output-vector-ordered
-  "Takes a RegisterMachine, and a training data set. Returns a collection of output values, one for each of the training cases, running the program IN ORDER."
-  [rm data]
-  (map #(output-running-ordered rm (first %)) data) )
 
 
 (defn error-vector
@@ -194,18 +177,12 @@
     ))
 
 
-(defn error-vector-ordered
-  "Takes a RegisterMachine,  and a training data set. Returns a collection of absolute errors, comparing the output observed for each training case to its expected value. RUNS PROGRAMS IN ORDER."
-  [rm data]
-  (let [outs (output-vector-ordered rm data)]
-    (into [] (map #(Math/abs (- %1 %2)) outs (pmap second data)))
-    ))
-
 
 (defn sum-squared-error
   "Takes a collection of numeric values, squares them, adds those to produce a single sum"
   [numbers]
   (reduce + (map #(* %1 %1) numbers)))
+
 
 
 (defn isNaN?
@@ -214,21 +191,10 @@
 
 
 
-
 (defn errors-and-failures
   "Takes a RegisterMachine, a repeat scale and a bunch of training cases, runs the machine for each case (scale times for each program step it contains), collects the error-vector, and returns a hash with two scores: the MSE of all numerical results, and the count of non-numerical results"
   [rm scale data]
   (let [errs (error-vector rm (* scale (count (:program rm))) data)
-        bad  (filter isNaN? errs)
-        good (filter #(not (isNaN? %)) errs)]
-      {:sse (sum-squared-error good) :failures (count bad) :error-vector errs}
-    ))
-
-
-(defn errors-and-failures-ordered
-  "Takes a RegisterMachine, and a bunch of training cases, runs the machine for each case IN ORDER, collects the error-vector, and returns a hash with two scores: the MSE of all numerical results, and the count of non-numerical results"
-  [rm data]
-  (let [errs (error-vector-ordered rm data)
         bad  (filter isNaN? errs)
         good (filter #(not (isNaN? %)) errs)]
       {:sse (sum-squared-error good) :failures (count bad) :error-vector errs}
@@ -254,15 +220,6 @@
       (push-into-value , :failures (:failures enf)))))
 
 
-(defn record-errors-ordered
-  "Takes a RegisterMachine, and a pile of training cases. Evaluates the machine over each training step RUNNING THE PROGRAM IN ORDER, calculates its `error-vector` and `errors-and-failures` hash, which is returned with the new items pushed onto stacks associated with the "
-  [rm data]
-  (let [enf (errors-and-failures-ordered rm data)]
-    (-> rm
-      (push-into-value , :error-vector (:error-vector enf))
-      (push-into-value , :sse (:sse enf))
-      (push-into-value , :failures (:failures enf)))))
-
 
 (defn crossover-program
   "Takes two RegisterMachines. Randomly samples some ProgramSteps from each, returning a new program combining the samples"
@@ -276,18 +233,6 @@
       (repeatedly dad-contrib #(rand-nth dad-program))
       ))))
 
-
-(defn crossover-program-ordered
-  "Takes two RegisterMachines. Picks a random point somewhere in each, and exchanges the end of the second one's program for the end of the first one's."
-  [mom dad]
-  (let [mom-program (:program mom)
-        mom-contrib (max 1 (rand-int (count mom-program)))
-        dad-program (:program dad)
-        dad-contrib (max 1 (rand-int (count dad-program)))]
-    (into [] (concat
-      (take mom-contrib mom-program)
-      (drop dad-contrib dad-program))
-      )))
 
 
 (defn mutate-program
@@ -303,6 +248,7 @@
                   %) 
                 old-program))
                 ))
+
 
 
 (defn crossover-registers
@@ -328,16 +274,6 @@
     (crossover-registers mom dad)
     (:connectors mom)
     (crossover-program mom dad)))
-
-
-
-(defn crossover-ordered
-  "Takes two RegisterMachines, and does crossover on their `:read-only` vectors and programs, using ordered point crossover"
-  [mom dad]
-  (->RegisterMachine
-    (crossover-registers mom dad)
-    (:connectors mom)
-    (crossover-program-ordered mom dad)))
 
 
 
