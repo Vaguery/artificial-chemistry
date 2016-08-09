@@ -54,13 +54,12 @@
         subset (take (/ (count data) 2) (shuffle data))
         ]
 
-    (into []
-      (-> (shuffle pile)
+    (-> (shuffle pile)
         (into , (starting-pile n ro scale cxn fxn-count all-functions))
         (into , (generational-breed-many pile n mutation-rate mutation-stdev))
         (score-pile , scale-factor subset)
         (lexicase-cull-many , n)
-        ))))
+        )))
 
 
 
@@ -90,7 +89,7 @@
           (do
             (report-line (str "lexicase-rms-" dataname ".csv") step pile)
             (recur (one-lexicase-step 
-                      pile sampling-factor dataset mutation-rate mutant-stdev)
+                        pile sampling-factor dataset mutation-rate mutant-stdev)
                    (inc step))
                    )))))
 

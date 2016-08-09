@@ -137,14 +137,13 @@
         fxn-count (count (:program best))
         ]
 
-    (into []
-      (-> pile
-      	(concat , (score-pile-ordered (starting-pile n ro scale cxn fxn-count all-functions) data))
-        (tournament-breed-many ,
-        					t-size (* 2 n) size-limit mutation-rate mutation-stdev mse-weight fail-weight)
+    (-> pile
+        (into , (tournament-breed-many pile
+        					t-size n size-limit mutation-rate mutation-stdev
+                  mse-weight fail-weight))
         (score-pile-ordered , data)
-        (lexicase-cull-many , n)
-        ))))
+        (generational-cull-many , n 1 1e12)
+        )))
 
 
 (defn linearGP-search
@@ -169,7 +168,8 @@
         (report-line (str "linearGP-rms-" dataname ".csv") step pile)
         (if (or (> step generations) (< (apply max (:sse (first pile))) 0.0001))
           (report-best (str "linearGP-rms-" dataname "-best.csv") step pile)
+          (do (println (class pile))
           (recur (one-linearGP-step 
                       pile dataset t-size size-limit mutation-rate mutant-stdev mse-weight failure-weight)
                    (inc step))
-                   ))))
+                   )))))

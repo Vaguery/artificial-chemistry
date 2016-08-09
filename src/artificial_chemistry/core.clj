@@ -205,7 +205,7 @@
 (defn push-into-value
   "Takes a RegisterMachine, a keyword and an item. If the keyword does not exist, it is first created and an empty vector is assigned its value. Then the item is pushed onto that vector. If the vector already exists, the item is simply pushed."
   [rm kw item]
-  (let [old (get rm kw [])]
+  (let [old (get rm kw '())]
     (assoc rm kw (conj old item))
     ))
 
@@ -243,10 +243,11 @@
         cxn-count   (count (:connectors rm))]
     (assoc rm
            :program
-           (map #(if (< (rand) prob) 
+           (into [] 
+            (map #(if (< (rand) prob) 
                   (random-program-step all-functions ro-count cxn-count) 
                   %) 
-                old-program))
+                old-program)))
                 ))
 
 
@@ -254,7 +255,7 @@
 (defn crossover-registers
   "Takes two RegisterMachines. Constructs a new `:read-only` vector by sampling from the two with equal probability."
   [mom dad]
-  (map #(rand-nth [%1 %2]) (:read-only mom) (:read-only dad)))
+  (into [] (map #(rand-nth [%1 %2]) (:read-only mom) (:read-only dad))))
 
 
 (defn mutate-registers
@@ -263,7 +264,8 @@
   (let [old-registers (:read-only rm)]
     (assoc rm 
            :read-only
-           (map #(if (< (rand) prob) (rr/rand-gaussian % stdev) %) old-registers))
+           (into []
+            (map #(if (< (rand) prob) (rr/rand-gaussian % stdev) %) old-registers)))
     ))
 
 
@@ -310,10 +312,10 @@
 (defn starting-pile
   "Creates a collection of specified size, of random RegisterMachine instances with the specified number of read-only "
   [size read-only constant-scale connectors functions function-set]
-  (into [] (repeatedly size 
+  (repeatedly size 
     #(randomize-read-only
       (random-register-machine function-set read-only connectors functions)
-        constant-scale))))
+        constant-scale)))
 
 
 
@@ -415,17 +417,12 @@
         fxn-count (count (:program best))
         ]
 
-    (into []
-      (-> pile
-        (into , (starting-pile n ro scale cxn (+ fxn-count (rand-int fxn-count)) all-functions))
+    (-> pile
+        (into , (starting-pile (/ n 2) ro scale cxn (+ fxn-count (rand-int fxn-count)) all-functions))
         (into , (generational-breed-many pile n mutation-rate mutation-stdev))
         (score-pile , scale-factor data)
-        (score-pile , scale-factor data)
-        (score-pile , scale-factor data)
-        (score-pile , scale-factor data)
-        (score-pile , scale-factor data)
         (generational-cull-many , n mse-weight fail-weight)
-        ))))
+        )))
 
 
 

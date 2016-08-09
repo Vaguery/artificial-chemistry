@@ -21,7 +21,7 @@
   (let [mom (->RegisterMachine [1 2] [1 2] [:a :b :c :d :e])
         dad (->RegisterMachine [1 2] [1 2] [:A :B :C :D :E])]
 
-  (crossover-program-ordered mom dad) => [:a :b :C :D :E]
+  (crossover-program-ordered mom dad 200) => [:a :b :C :D :E]
     (provided (rand-int 5) => 2)
   ))
 
@@ -31,7 +31,7 @@
   (let [mom (->RegisterMachine [1 2] [1 2] [:a :b :c :d :e])
         dad (->RegisterMachine [3 4] [1 2] [:A :B :C :D :E])]
 
-  (crossover-ordered mom dad) => (->RegisterMachine [:X :Y] [1 2] [:a :b :C :D :E])
+  (crossover-ordered mom dad 200) => (->RegisterMachine [:X :Y] [1 2] [:a :b :C :D :E])
     (provided (rand-int 5) => 2
               (rand-nth anything) =streams=> [:X :Y])
   ))
@@ -47,13 +47,13 @@
 ;     1 1e12 0.03 1.0) => 99)
 
 
-(fact :linearGP
-  "run a linearGP search on y=x+6"
-  (linearGP-search 
-    data/x6-training-data "x6" 
-    100 11 100.0 30 100 all-functions 
-    5 200 500 
-    1 1e12 0.05 1.0) => 99)
+; (fact :linearGP
+;   "run a linearGP search on y=x+6"
+;   (linearGP-search 
+;     (take 10 data/x6-training-data) "x6" 
+;     100 11 100.0 30 100 all-functions 
+;     5 200 500 
+;     1 1e12 0.05 1.0) => 99)
 
 
 ; (fact :linearGP
