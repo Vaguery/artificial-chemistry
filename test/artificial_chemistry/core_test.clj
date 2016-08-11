@@ -244,7 +244,7 @@
 (fact "crossover-program won't ever produce an empty result"
   (let [mom (->RegisterMachine [1 1 1 1] [0 0 0] [:a :b :c :d])
         dad (->RegisterMachine [2 2 2 2] [0 0 0] [:z :y :x :w])]
-    (crossover-program mom dad) => [:MOM :DAD]
+    (crossover-program mom dad) => [:MOM :MOM :DAD :DAD]
     (provided (rand-int 4) => 0
               (rand-nth [:a :b :c :d]) => :MOM
               (rand-nth [:z :y :x :w]) => :DAD

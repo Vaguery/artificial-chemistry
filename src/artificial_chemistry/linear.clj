@@ -50,27 +50,30 @@
 (defn record-errors-ordered
   "Takes a RegisterMachine, and a pile of training cases. Evaluates the machine over each training step RUNNING THE PROGRAM IN ORDER, calculates its `error-vector` and `errors-and-failures` hash, which is returned with the new items pushed onto stacks associated with the "
   [rm data]
-  (let [enf (errors-and-failures-ordered rm data)]
-    (-> rm
-      (push-into-value , :error-vector (:error-vector enf))
-      (push-into-value , :sse (:sse enf))
-      (push-into-value , :failures (:failures enf)))))
+  (if (:sse rm)
+    rm
+    (let [enf (errors-and-failures-ordered rm data)]
+      (-> rm
+        (push-into-value , :error-vector (:error-vector enf))
+        (push-into-value , :sse (:sse enf))
+        (push-into-value , :failures (:failures enf))))))
 
 
 
 
 (defn crossover-program-ordered
-  "Takes two RegisterMachines. Picks a random point somewhere in each, and exchanges the end of the second one's program for the end of the first one's."
+  "Takes two RegisterMachines."
   [mom dad size-limit]
   (let [mom-program  (:program mom)
-        mom-cutpoint (max 1 (rand-int (count mom-program)))
         dad-program  (:program dad)
-        dad-cutpoint (max 1 (rand-int (count dad-program)))
-        baby  (concat
-					      (take mom-cutpoint mom-program)
-					      (drop dad-cutpoint dad-program))]
-	  (into [] (drop (max 0 (- (count baby) size-limit)) baby))
-	  ))
+        baby  (map #(if (< (rand) 1/2) %1 %2) mom-program dad-program)]
+    (cond (= (count mom-program) (count dad-program))
+        	   (into [] baby)
+          (< (count mom-program) (count dad-program))
+             (into [] (concat baby (drop (count baby) dad)))
+          :else
+             (into [] (concat baby (drop (count baby) mom)))
+             )))
     	 	 
 
 
@@ -104,8 +107,10 @@
 
 (defn tournament-breed-one
 	[pile t size-limit mse-weight fail-weight]
-	(let [tourney (take (max 2 t) (shuffle pile))
-			  [mom dad] (generational-cull-many tourney 2 mse-weight fail-weight)]
+	(let [mom-tourney (take (max 1 t) (shuffle pile))
+        dad-tourney (take (max 1 t) (shuffle pile))
+			  mom (first (generational-cull-many mom-tourney 1 mse-weight fail-weight))
+        dad (first (generational-cull-many dad-tourney 1 mse-weight fail-weight))]
 	  (crossover-ordered mom dad size-limit)
 		))
 
@@ -135,14 +140,17 @@
         scale (apply max (:read-only best))
         cxn (count (:connectors best))
         fxn-count (count (:program best))
+        diversity (count (distinct (map #(first (:error-vector %)) pile)))
         ]
 
     (-> pile
+        (into , (score-pile-ordered (starting-pile n ro scale cxn 
+                  (- size-limit (rand-int size-limit)) all-functions) data))
         (into , (tournament-breed-many pile
-        					t-size n size-limit mutation-rate mutation-stdev
+                  t-size n size-limit mutation-rate mutation-stdev
                   mse-weight fail-weight))
         (score-pile-ordered , data)
-        (generational-cull-many , n 1 1e12)
+        (generational-cull-many , n mse-weight fail-weight)
         )))
 
 
@@ -168,7 +176,7 @@
         (report-line (str "linearGP-rms-" dataname ".csv") step pile)
         (if (or (> step generations) (< (apply max (:sse (first pile))) 0.0001))
           (report-best (str "linearGP-rms-" dataname "-best.csv") step pile)
-          (do (println (class pile))
+          (do (println "  distinct:" (count (distinct (map #(first (:error-vector %)) pile))))
           (recur (one-linearGP-step 
                       pile dataset t-size size-limit mutation-rate mutant-stdev mse-weight failure-weight)
                    (inc step))

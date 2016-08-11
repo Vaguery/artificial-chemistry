@@ -35,7 +35,7 @@
 (defn random-birthday-case
   []
   (let [x (+ (rand 100) -50)]
-    [[x] (+ (* 9 x x) (* 11 x) 1964)]
+    [[x] (+ (* 0.9 x x) (* 1.1 x) 1.964)]
     ))
 
 

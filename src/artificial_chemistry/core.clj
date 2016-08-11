@@ -1,7 +1,7 @@
 (ns artificial-chemistry.core
-   (:require [clojure.math.numeric-tower :as math]
-             [roul.random :as rr]
-             [com.climate.claypoole :as cp]))
+  (:require [clojure.math.numeric-tower :as math]
+            [roul.random :as rr]
+            [com.climate.claypoole :as cp]))
 
 
 (defrecord RegisterMachine [read-only connectors program])
@@ -173,8 +173,13 @@
   "Takes a RegisterMachine, a number of steps, and a training data set. Returns a collection of absolute errors, comparing the output observed for each training case to its expected value."
   [rm steps data]
   (let [outs (output-vector rm steps data)]
-    (into [] (map #(Math/abs (- %1 %2)) outs (pmap second data)))
+    (into [] (map #(double (Math/abs (- %1 %2))) outs (pmap second data)))
     ))
+
+
+(defn worst-error
+  [rm]
+  (reduce (fn [bad v] (max bad (apply max v))) -1 (:error-vector rm)))
 
 
 
@@ -222,12 +227,12 @@
 
 
 (defn crossover-program
-  "Takes two RegisterMachines. Randomly samples some ProgramSteps from each, returning a new program combining the samples"
+  "Takes two RegisterMachines. Randomly samples some ProgramSteps from each, returning a new program combining the samples. A minimum of two samples are taken from each parent."
   [mom dad]
   (let [mom-program (:program mom)
-        mom-contrib (max 1 (rand-int (count mom-program)))
+        mom-contrib (max 2 (rand-int (count mom-program)))
         dad-program (:program dad)
-        dad-contrib (max 1 (rand-int (count dad-program)))]
+        dad-contrib (max 2 (rand-int (count dad-program)))]
     (into [] (concat
       (repeatedly mom-contrib #(rand-nth mom-program))
       (repeatedly dad-contrib #(rand-nth dad-program))
@@ -323,7 +328,7 @@
 (defn score-pile
   "Takes a pile of `RegisterMachine` items and a dataset (of training cases). Will score each machine on every entry in the dataset, using the indicated number of samples per function in the programs. For example, if the scaling-factor is 5 and a machine being scored has 100 functions, there will be 500 samples run in generating the score. NOTE: all scores are saved as _stacks_ of scores; each time a RegisterMachine is scored, a new score is _added_ to its stacks."
   [machines scaling-factor dataset]
-  (cp/pmap (+ 2 (cp/ncpus)) #(record-errors % scaling-factor (take 20 (shuffle dataset))) machines))
+  (cp/pmap (+ 2 (cp/ncpus)) #(record-errors % scaling-factor dataset) machines))
 
 
 
@@ -341,9 +346,11 @@
   [pile mse-weight fail-weight]
   (butlast 
     (sort-by
-      #(+ (* mse-weight (apply max (:sse %))) 
-          (* fail-weight (apply max (:failures %))))
+      #(+ (* mse-weight (worst-error %))
+            (* fail-weight (apply max (:failures %))))
      (shuffle pile))))
+
+
 
 
 
@@ -374,6 +381,10 @@
     (println
       (str t ", "
         (clojure.string/join ", " (take 5 (map #(apply max (:sse %)) pile))) "..."
+        ))
+    (println
+      (str t ", "
+        (clojure.string/join ", " (take 5 (map #(apply max (flatten (:error-vector %))) pile))) "..."
         ))
     ))
 
@@ -406,6 +417,24 @@
 
 
 
+
+(defn tournament-cull-many
+  [pile keep tournament-size mse-weight fail-weight]
+  (loop [survivors pile]
+    (if (<= (count survivors) keep)
+      (sort-by
+        #(+' (*' mse-weight (apply max (:sse %)))
+            (*' fail-weight (apply max (:failures %))))
+        survivors)
+      (let [mixed    (shuffle survivors)
+           tourney   (take tournament-size mixed)
+           onlookers (drop tournament-size mixed)]
+        (recur (concat onlookers (cull-one tourney mse-weight fail-weight)))
+        ))))
+
+
+
+
 (defn one-generational-step
   "Assumes machines are scored before arriving; shuffles and samples data for each evaluation"
   [pile scale-factor data mutation-rate mutation-stdev mse-weight fail-weight]
@@ -418,10 +447,12 @@
         ]
 
     (-> pile
-        (into , (starting-pile (/ n 2) ro scale cxn (+ fxn-count (rand-int fxn-count)) all-functions))
-        (into , (generational-breed-many pile n mutation-rate mutation-stdev))
+        (into , (starting-pile n ro scale cxn fxn-count all-functions))
+        (into , (generational-breed-many pile (* 2 n) mutation-rate mutation-stdev))
         (score-pile , scale-factor data)
-        (generational-cull-many , n mse-weight fail-weight)
+        (score-pile , scale-factor data)
+        (score-pile , scale-factor data)
+        (tournament-cull-many , n 3 mse-weight fail-weight)
         )))
 
 
@@ -464,11 +495,12 @@
         (report-line (str "generational-rms-" dataname ".csv") step pile)
         (if (or (> step generations) (< (apply max (:sse (first pile))) 0.0001))
           (report-best (str "generational-rms-" dataname "-best.csv") step pile)
-          (recur (one-generational-step 
+          (do (println (:sse (first pile)))
+            (recur (one-generational-step 
                       pile sampling-factor dataset mutation-rate mutant-stdev
                       mse-weight failure-weight)
                    (inc step))
-                   ))))
+                   )))))
 
 
 
